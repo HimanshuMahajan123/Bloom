@@ -115,8 +115,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   res
     .cookie("token", jwtToken, options)
-    .status(200)
-    .json(new ApiResponse(200, "Email verified successfully"));
+    .redirect(302, `${process.env.CLIENT_URL}/login/me`);
 });
 
 export { loginUser, verifyEmail };
