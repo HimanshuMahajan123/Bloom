@@ -117,5 +117,28 @@ const verifyEmail = asyncHandler(async (req, res) => {
     .cookie("token", jwtToken, options)
     .redirect(302, `${process.env.CLIENT_URL}/login/me`);
 });
+const getMe = asyncHandler(async (req, res) => {
+  const token = req.cookies.token;
 
-export { loginUser, verifyEmail };
+  if (!token) {
+    throw new ApiError(401, "Not authenticated");
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.id },
+    select: {
+      id: true,
+      verified: true,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError(401, "User not found");
+  }
+
+  res.status(200).json(user);
+});
+
+export { loginUser, verifyEmail ,getMe };
