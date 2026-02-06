@@ -4,6 +4,7 @@ import whisper_envelope from "../assets/whisper_envelope.png";
 import flight_envelope from "../assets/flight_envelope.png";
 import unfolding_flowers from "../assets/unfolding_flowers.png";
 import hero_heart from "../assets/hero_heart.png";
+import { NavLink } from "react-router-dom";
 const Divider = ()=>{
     return (
         <div className="relative mt-24">
@@ -31,9 +32,10 @@ const Home = () => {
         relative
         overflow-hidden
         bg-gradient-to-b
-        from-[##923b42]
-        via-[#e8afa8]
-        to-[#d38f8c]
+        from-[#923b42]
+        from-[1%]      
+                        via-[#f0c9c3]
+        to-[#dd908c]
         text-[#4a2c2a]
       "
     >
@@ -202,7 +204,7 @@ const Home = () => {
       </div>
      {/* FLOATING CTA */}
 <div className="fixed bottom-6 right-6 z-50">
-  <button
+  <NavLink to="/login" 
     className="
       group
       relative
@@ -223,7 +225,7 @@ const Home = () => {
     "
   >
     Spark ✨
-  </button>
+  </NavLink>
 </div>
 
     </div>

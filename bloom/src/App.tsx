@@ -1,7 +1,10 @@
 import React from 'react'
 import Home from './Components/Home'
+import GenerateProfile from './Components/GenerateProfile'
 import './App.css'
-import Login from './Components/Login'
+// import Login from './Components/Login'
+import HeartLoader from './Components/HeartLoader'
+import Dashboard from './Components/Dashboard'
 const App = () => {
   return (
     <div  className="
@@ -14,7 +17,8 @@ const App = () => {
         to-[#d38f8c]
         text-[#4a2c2a]
       ">
-        <Login></Login>
+        <Dashboard />
+        {/* <PhysicsScene /> */}
       </div>
   )
 }

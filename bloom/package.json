@@ -5,15 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev-all": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "axios": "^1.13.4",
+    "framer-motion": "^12.33.0",
     "lucide-react": "^0.563.0",
+    "matter-js": "^0.20.0",
+    "poly-decomp": "^0.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-router": "^7.13.0",
+    "react-router-dom": "^7.13.0",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
