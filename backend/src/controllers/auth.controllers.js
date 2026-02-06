@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendEmail } from "../utils/mail.js";
 import { ApiResponse } from "../utils/api-response.js";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 const parseCollegeEmail = (email) => {
   const domain = "nith.ac.in";
@@ -22,6 +23,17 @@ const parseCollegeEmail = (email) => {
 };
 const generateToken = () => {
   return crypto.randomBytes(32).toString("hex");
+};
+
+const generateJWT = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
 };
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -93,13 +105,17 @@ const verifyEmail = asyncHandler(async (req, res) => {
     where: { id: record.userId },
   });
 
-  //gonna generate jwt
+  const jwtToken = generateJWT(updatedUser);
+  const options = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  };
 
-  res.status(200).json(
-    new ApiResponse(200, "Email verified successfully", {
-      user: updatedUser,
-    }),
-  );
+  res
+    .cookie("token", jwtToken, options)
+    .redirect(`${process.env.CORS_ORIGIN}/login/me`);
 });
 
 export { loginUser, verifyEmail };
