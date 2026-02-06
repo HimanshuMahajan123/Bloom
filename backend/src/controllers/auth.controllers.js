@@ -57,7 +57,6 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   const token = generateToken();
-  console.log("Generated verification token:", token); // Debugging log
 
   await prisma.emailVerification.upsert({
     where: { userId: user.id },
@@ -107,7 +106,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 
   const jwtToken = generateJWT(updatedUser);
-  console.log("Generated JWT:", jwtToken); // Debugging log
   const options = {
     httpOnly: true,
     secure: true,
