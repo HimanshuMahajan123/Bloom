@@ -14,6 +14,7 @@ model User {
   verified          Boolean            @default(false)
   createdAt         DateTime           @default(now())
   emailVerification EmailVerification?
+  onboardingSubmission OnboardingSubmission?
 }
 
 model EmailVerification {
@@ -23,3 +24,22 @@ model EmailVerification {
   expiresAt DateTime
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+
+model OnboardingSubmission {
+  id         String   @id @default(uuid())
+
+  userId     String   @unique
+  rollNumber String
+
+  answers    Json
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([rollNumber])
+}
+
+
