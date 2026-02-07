@@ -70,7 +70,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
     throw new ApiError(502, "Profile generation failed");
   }
 
-  const [username, avatar] = await prisma.$transaction(async (tx) => {
+  const [username] = await prisma.$transaction(async (tx) => {
     const usernames = await tx.usernamePool.findMany({
       where: {
         gender: gender,
@@ -89,28 +89,21 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
         userId: userId,
       },
     });
-
-    const avatars = await tx.avatarPool.findMany({
-      where: {
-        gender: gender,
-        taken: false,
-      },
-    });
-
-    if (!avatars.length) throw new Error("No avatars left");
-
-    const chosenAvatar = avatars[Math.floor(Math.random() * avatars.length)];
-
-    await tx.avatarPool.update({
-      where: { id: chosenAvatar.id },
-      data: {
-        taken: true,
-        userId: userId,
-      },
-    });
-
-    return [chosen, chosenAvatar];
+    return [chosen];
   });
+
+  let avatar = "";
+  if (gender === "MALE") {
+    const avatarNumber = Math.floor(Math.random() * 19) + 1;
+    avatar = {
+      url: `/${gender.toLowerCase()}/${avatarNumber}.png`,
+    };
+  } else {
+    const avatarNumber = Math.floor(Math.random() * 12) + 1;
+    avatar = {
+      url: `/${gender.toLowerCase()}/${avatarNumber}.png`,
+    };
+  }
 
   await prisma.user.update({
     where: { id: userId },
@@ -132,4 +125,79 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   );
 });
 
-export { submitAnswersAndGenerateProfile };
+const homePageContent = asyncHandler(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 10, 30);
+
+  const cursorCreatedAt = req.query.cursor;
+  const cursorId = req.query.id;
+
+  let whereClause = {
+    verified: true,
+    poem: {
+      not: "",
+    },
+  };
+
+  if (cursorCreatedAt && cursorId) {
+    whereClause = {
+      ...whereClause,
+      OR: [
+        {
+          createdAt: {
+            lt: new Date(cursorCreatedAt),
+          },
+        },
+        {
+          createdAt: new Date(cursorCreatedAt),
+          id: {
+            lt: cursorId,
+          },
+        },
+      ],
+    };
+  }
+
+  const users = await prisma.user.findMany({
+    where: whereClause,
+
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+
+    take: limit + 1,
+    select: {
+      id: true,
+      createdAt: true,
+      username: true,
+      poem: true,
+    },
+  });
+
+  const hasMore = users.length > limit;
+
+  const results = hasMore ? users.slice(0, limit) : users;
+
+  let nextCursor = null;
+
+  if (hasMore) {
+    const last = results[results.length - 1];
+    nextCursor = {
+      cursor: last.createdAt.toISOString(),
+      id: last.id,
+    };
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        items: results.map((u) => ({
+          username: u.username,
+          poem: u.poem,
+        })),
+        nextCursor,
+      },
+      "Home page content fetched successfully",
+    ),
+  );
+});
+
+export { submitAnswersAndGenerateProfile, homePageContent };
