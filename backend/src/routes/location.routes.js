@@ -1,6 +1,6 @@
-import { checkLiveSignals, updateLocation, getSignalScore} from "../controllers/location.controller";
+import { checkLiveSignals, updateLocation, getSignalScore} from "../controllers/location.controller.js";
 import { Router } from "express";
-import { verifyjwt } from "../middlewares/auth.middlewares";
+import { verifyjwt } from "../middlewares/auth.middlewares.js";
 const router = Router();
 
 router.post("/update" ,verifyjwt, updateLocation); 

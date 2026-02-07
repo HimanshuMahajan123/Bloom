@@ -7,7 +7,7 @@ import prisma from "../db/prisma.js";
 import {
   updateUserLocation,
   getNearbyUsers
-} from "../services/locationStore.js";
+} from "../store/locationStore.js";
 
 import {
   hasSeenSignal,
