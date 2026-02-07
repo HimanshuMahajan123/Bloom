@@ -20,11 +20,14 @@ model User {
   poem                 String   @default("")
 
   verified             Boolean  @default(false)
+  onboardingCompleted  Boolean  @default(false)
 
   createdAt            DateTime @default(now())
 
   emailVerification    EmailVerification?
   onboardingSubmission OnboardingSubmission?
+
+  @@index([createdAt])
 }
 
 enum Gender {
@@ -61,15 +64,6 @@ model UsernamePool {
   id     String @id @default(uuid())
   name   String @unique
   gender Gender
-  taken  Boolean @default(false)
-
-  userId String? @unique
-}
-
-model AvatarPool {
-  id     String @id @default(uuid())
-  gender Gender
-  url    String
   taken  Boolean @default(false)
 
   userId String? @unique
