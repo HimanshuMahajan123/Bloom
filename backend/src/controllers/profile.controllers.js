@@ -28,6 +28,48 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid gender answer");
   }
 
+  const submission = await prisma.onboardingSubmission.upsert({
+    where: { userId },
+    update: {
+      answers,
+    },
+    create: {
+      userId,
+      rollNumber,
+      answers,
+    },
+  });
+
+  const prompt = `
+    Write a romantic but natural dating profile for a college student using the answers below.
+
+    Rules:
+    - 150–200 words
+    - warm and heartfelt, not cheesy
+    - simple, everyday language
+    - no fancy or dramatic metaphors
+    - sound human, not AI-generated
+    - do not mention questions, quizzes, or prompts
+    - output only the final profile text
+
+    Answers:
+    ${answers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+    `;
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.9,
+    });
+
+    poem =
+      completion.choices?.[0]?.message?.content ||
+      "A mysterious romantic soul.";
+  } catch (err) {
+    console.error("Groq error:", err);
+    throw new ApiError(502, "Profile generation failed");
+  }
+
   const [username, avatar] = await prisma.$transaction(async (tx) => {
     const usernames = await tx.usernamePool.findMany({
       where: {
@@ -69,58 +111,6 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
 
     return [chosen, chosenAvatar];
   });
-
-  const submission = await prisma.onboardingSubmission.upsert({
-    where: { userId },
-    update: {
-      answers,
-    },
-    create: {
-      userId,
-      rollNumber,
-      answers,
-    },
-  });
-
-  const prompt = `
-    You are a romantic poet writing a dating profile.
-
-    Create a poetic, warm, charming description in 150-200 words based on the following answers to 10 questions about personality, preferences, and interests.
-
-    Try to use simple language and make it sound genuine and heartfelt. 
-
-    the description should be romantic, but not overly cheesy or flowery. It should feel like it's written by a real person, not an AI.
-
-    Do NOT mention the questions or the fact that these answers were generated from a quiz. Just create a romantic profile description based on the answers.
-
-    Avoid using complex words or flowery language. The description should feel like it's written by a real person, not an AI.
-
-    Do NOT mention questions , output only the final description text.
-
-    Questions that were asked from the users:
-    What makes you feel most alive these days?
-    If you had a free evening with no responsibilities, how would you spend it?
-    What small thing can instantly brighten your day?
-    Which three words would your closest friend use to describe you? Briefly explain one.
-    Select your gender to help us find the right matches for you:
-    What are you secretly hoping college gives you before graduation?
-    What do you value most in relationships?
-    How do you usually show care or affection for someone you like?
-    What kind of person instantly catches your attention?
-    If someone wrote a short poem about you after meeting once, what would its mood be?
-
-    Answers got from the user:
-    ${answers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
-    `;
-
-  const completion = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.9,
-  });
-
-  const poem =
-    completion.choices?.[0]?.message?.content || "A mysterious romantic soul.";
 
   await prisma.user.update({
     where: { id: userId },
