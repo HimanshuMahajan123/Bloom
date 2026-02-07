@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
+import locationRoutes from "./routes/location.routes.js";
 const app = express();
 
 app.use(express.json());
@@ -21,6 +22,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
+app.use("/api/location", locationRoutes);
 
 app.use("/api/profile", profileRoutes);
 

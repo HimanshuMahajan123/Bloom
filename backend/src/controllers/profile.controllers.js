@@ -14,63 +14,83 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const rollNumber = req.user.rollNumber;
 
+  /* ---------------- VALIDATION ---------------- */
+
   if (!Array.isArray(answers) || answers.length !== 10) {
     throw new ApiError(400, "Exactly 10 answers are required");
   }
 
   for (const ans of answers) {
-    if (typeof ans !== "string" || ans.trim().length < 3) {
+    if (
+      typeof ans !== "object" ||
+      typeof ans.answer !== "string" ||
+      ans.answer.trim().length < 3
+    ) {
       throw new ApiError(400, "Invalid answer format");
     }
   }
 
-  const gender = answers[4].toUpperCase();
+  /* ---------------- NORMALIZE ---------------- */
+
+  const normalizedAnswers = answers.map(a => a.answer.trim());
+
+  const gender = normalizedAnswers[4].toUpperCase();
   if (gender !== "MALE" && gender !== "FEMALE") {
     throw new ApiError(400, "Invalid gender answer");
   }
+
+  /* ---------------- USER CHECK ---------------- */
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-  if(user.onboardingCompleted) {
+  if (!user) throw new ApiError(404, "User not found");
+  if (user.onboardingCompleted) {
     throw new ApiError(400, "Profile already generated");
   }
+
+  /* ---------------- SAVE ANSWERS ---------------- */
+
   const submission = await prisma.onboardingSubmission.upsert({
     where: { userId },
-    update: {
-      answers,
-    },
+    update: { answers: normalizedAnswers },
     create: {
       userId,
       rollNumber,
-      answers,
+      answers: normalizedAnswers,
     },
   });
-  axios.get("http://10.104.11.105:696/user/register", {
+
+  /* ---------------- EXTERNAL SERVICE (NON-BLOCKING) ---------------- */
+
+  axios.get("http://10.104.11.105:6969/user/register", {
     params: {
       rollno: rollNumber,
-      responses: JSON.stringify(answers),
+      responses: JSON.stringify(normalizedAnswers),
     },
     timeout: 3000,
   }).catch(err => {
     console.error("External service error:", err.message);
   });
 
+  /* ---------------- PROFILE GENERATION ---------------- */
+
   const prompt = `
-    Write a romantic but natural dating profile for a college student using the answers below.
+Write a romantic but natural dating profile for a college student using the answers below.
 
-    Rules:
-    - 150–200 words
-    - warm and heartfelt, not cheesy
-    - simple, everyday language
-    - no fancy or dramatic metaphors
-    - sound human, not AI-generated
-    - do not mention questions, quizzes, or prompts
-    - output only the final profile text
+Rules:
+- 150–200 words
+- warm and heartfelt, not cheesy
+- simple, everyday language
+- no fancy or dramatic metaphors
+- sound human, not AI-generated
+- do not mention questions, quizzes, or prompts
+- output only the final profile text
 
-    Answers:
-    ${answers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
-    `;
+Answers:
+${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+`;
+
+  let poem = "A mysterious romantic soul.";
+
   try {
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
@@ -78,20 +98,17 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
       temperature: 0.9,
     });
 
-     poem =
-      completion.choices?.[0]?.message?.content ||
-      "A mysterious romantic soul.";
+    poem = completion.choices?.[0]?.message?.content?.trim() || poem;
   } catch (err) {
     console.error("Groq error:", err);
     throw new ApiError(502, "Profile generation failed");
   }
 
+  /* ---------------- USERNAME + AVATAR ---------------- */
+
   const [username] = await prisma.$transaction(async (tx) => {
     const usernames = await tx.usernamePool.findMany({
-      where: {
-        gender: gender,
-        taken: false,
-      },
+      where: { gender, taken: false },
     });
 
     if (!usernames.length) throw new Error("No usernames left");
@@ -100,30 +117,28 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
 
     await tx.usernamePool.update({
       where: { id: chosen.id },
-      data: {
-        taken: true,
-        userId: userId,
-      },
+      data: { taken: true, userId },
     });
+
     return [chosen];
   });
 
-  let avatarUrl = "";
-  if (gender === "MALE") {
-    const avatarNumber = Math.floor(Math.random() * 19) + 1;
-    avatarUrl = `/${gender.toLowerCase()}/${avatarNumber}.png`;
-  } else {
-    const avatarNumber = Math.floor(Math.random() * 12) + 1;
-    avatarUrl = `/${gender.toLowerCase()}/${avatarNumber}.png`;
-  }
+  const avatarNumber =
+    gender === "MALE"
+      ? Math.floor(Math.random() * 19) + 1
+      : Math.floor(Math.random() * 12) + 1;
+
+  const avatarUrl = `/${gender.toLowerCase()}/${avatarNumber}.png`;
+
+  /* ---------------- FINAL UPDATE ---------------- */
 
   await prisma.user.update({
     where: { id: userId },
     data: {
-      gender: gender,
+      gender,
       username: username.name,
-      avatarUrl: avatarUrl,
-      poem: poem,
+      avatarUrl,
+      poem,
       onboardingCompleted: true,
     },
   });
@@ -133,10 +148,11 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
       poem,
       submissionId: submission.id,
       username: username.name,
-      avatarUrl: avatarUrl,
+      avatarUrl,
     }),
   );
 });
+
 
 const homePageContent = asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 10, 30);
@@ -266,5 +282,7 @@ const homePageContent = asyncHandler(async (req, res) => {
     new ApiResponse(200, { signals, likes, resonance }, "Signals fetched successfully")
   );
 });
+
+
 
 export { submitAnswersAndGenerateProfile, homePageContent, notificationsPanel };
