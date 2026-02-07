@@ -11,18 +11,15 @@ QUESTION_WEIGHTS = {"q1":1,
                     "q9":1,
                     "q10":1,
                     }
-def create_weighted_vector(responses: dict) -> np.ndarray:
+def create_weighted_vector(responses: list) -> np.ndarray:
     final_vector = None
 
-    for q_id, answer in responses.items():
-        if(q_id) == 'q4':
+    for idx, answer in enumerate(responses):
+        if idx == 4:  # gender question
             continue
-        weight = QUESTION_WEIGHTS.get(q_id, 1.0)
+
+        weight = QUESTION_WEIGHTS.get(f"q{idx+1}", 1.0)
         emb = embed_text(answer) * weight
         final_vector = emb if final_vector is None else final_vector + emb
 
-    # normalize final vector
-    norm = np.linalg.norm(final_vector)
-    if norm == 0:
-        return final_vector
-    return final_vector / norm
+    return final_vector / np.linalg.norm(final_vector)

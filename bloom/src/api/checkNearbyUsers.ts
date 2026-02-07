@@ -2,7 +2,7 @@ import api from "./api";
 
 export const checkNearbyUsers = async () => {
   try {
-    const response = await api.post("/api/location/signal/check");
+    const response = await api.get("/location/signal/check");
 
     return response.data;
   } catch (error: any) {

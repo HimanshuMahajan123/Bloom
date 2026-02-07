@@ -20,7 +20,7 @@ const truncateWords = (text, limit = 80) => {
 
 /* ---------- FeedCard (stateless) ---------- */
 
-const FeedCard = ({ item, onExpand }) => {
+const FeedCard = ({ item, onExpand  }) => {
   return (
     <div
       className="
@@ -352,17 +352,22 @@ const Dashboard = () => {
 
       {/* profile modal (expanded) */}
       {expandedProfile && (
-        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center px-6 py-12">
+        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center px-6 py-12" >
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setExpandedProfile(null)}
+            
           />
           <div
-            className="relative z-10 max-w-lg w-full bg-[#fff6e9] rounded-3xl px-8 py-6 overflow-auto"
-            style={{ maxHeight: "85vh" }}
+            className="relative z-10 max-w-lg w-full bg-[#ffaea8] rounded-3xl px-8 py-6 overflow-auto"
+  style={{
+        backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
+        backgroundSize: "cover, 220px",
+        backgroundRepeat: "no-repeat, repeat",
+      }}            
           >
-            <div className="flex justify-between items-start">
-              <h2 className="text-2xl font-playfair italic text-[#5b2a2a]">
+            <div className="flex justify-between items-start ">
+              <h2 className="text-2xl text-center flex space-center font-playfair italic font-medium text-[#5b2a2a]">
                 {expandedProfile.username}
               </h2>
               <button onClick={() => setExpandedProfile(null)} className="p-2">
@@ -376,14 +381,7 @@ const Dashboard = () => {
                 "No profile text available."}
             </div>
 
-            <div className="mt-6 flex gap-3">
-              <button className="flex-1 py-3 rounded-xl bg-[#f3dede] text-[#8c3037]">
-                Not now
-              </button>
-              <button className="flex-1 py-3 rounded-xl bg-[#af323f] text-white">
-                Send spark
-              </button>
-            </div>
+          
           </div>
         </div>
       )}

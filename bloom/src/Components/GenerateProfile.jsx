@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import scroll_bg from "../assets/paper_g.png";
 import multi_heart from "../assets/multi_heart.png";
+import { NavLink } from "react-router-dom";
 import { generateProfile } from "../api/generate";
 const WhisperInput = ({ value, onChange, placeholder }) => {
   return (
@@ -100,7 +101,9 @@ const GenerateProfile = () => {
   const [step, setStep] = useState(0);
 const [answers, setAnswers] = useState(Array(questions.length).fill(""));
   const [revealed, setRevealed] = useState(false);
-    const [username, setUsername] = useState("CHineseBard");
+    const [username, setUsername] = useState("Gestalt");
+    const [poem, setPoem] = useState("Roses are red, violets are blue, I'm not great at poems, but hey, nice to meet you.");
+    const [avatarUrl, setAvatarUrl] = useState("");
   const current = questions[step];
 
   const handleAnswer = (value) => {
@@ -115,12 +118,15 @@ const handleNext = async () => {
   if (step === questions.length - 1) {
     try {
 const payload = {
-  answers: answers.map(a => ({ answer: a }))
+  answers: answers.map((a ,i=0  ) => ({ id: i + 1, answer: a }))
 };
 
 
       const data = await generateProfile(payload);
+      console.log("Profile generated:", data);
       setUsername(data.username);
+      setPoem(data.poem);
+      setAvatarUrl(data.avatarUrl);
       setRevealed(true);
     } catch (err) {
       console.error("Error generating profile:", err);
@@ -232,33 +238,17 @@ const payload = {
   <h2 className="text-center text-3xl font-playfair italic text-[#5b2a2a] mb-10">
 {username}  </h2>
 
-  <div className="space-y-8 font-lora text-sm text-[#4a2c2a]">
-    {questions.map((q) => (
-      <div key={q.id}>
-        <p className="italic opacity-60 mb-1">{q.question}</p>
-
-        <p
-          className="italic leading-relaxed"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(140,48,55,0.45) 60%, rgba(140,48,55,0.15) 75%, rgba(140,48,55,0.45) 90%)",
-            backgroundPosition: "0 95%",
-            backgroundSize: "100% 1px",
-            backgroundRepeat: "no-repeat",
-            paddingBottom: "2px",
-          }}
-        >
-{answers[Number(q.id) - 1]}
-        </p>
-      </div>
-    ))}
+  <div className="space-y-8 font-lora  text-[#4a2c2a] underline font-lora italic p-2 text-center tracking-wide text-lg leading-[1.8]"> 
+  {poem}
   </div>
 
   <p className="mt-12 text-center italic text-[#8c3037]">
     ✨ This is how your presence feels ✨
   </p>
+  <NavLink to="/app" className=" mt-8 text-center text-sm py-4 px-4 bg-[#b93d49] text-white rounded-lg  font-lora italic absolute right-2 bottom-2 hover:no-underline ">
+    Explore your matches
+  </NavLink>
 </div>
-
 
       )}
     </div>

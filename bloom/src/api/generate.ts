@@ -1,6 +1,7 @@
 import api from "./api";
 
-export const generateProfile = async (profile) => {
-  const response = await api.post("profile/submit-answers", { answers:profile });
-  return response.data;
+export const generateProfile = async (answers) => {
+  console.log("Submitting answers:", answers);
+  const response = await api.post("profile/submit-answers", answers);
+  return response.data.message;
 }

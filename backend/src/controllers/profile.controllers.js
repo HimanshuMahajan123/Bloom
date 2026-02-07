@@ -10,12 +10,13 @@ const groq = new Groq({
 });
 
 const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
-  const { answers } = req.body;
+  const  {answers}  = req.body;
   const userId = req.user.id;
   const rollNumber = req.user.rollNumber;
-
+  console.log("Received answers:", answers);
+  console.log(answers.length)
   /* ---------------- VALIDATION ---------------- */
-
+  
   if (!Array.isArray(answers) || answers.length !== 10) {
     throw new ApiError(400, "Exactly 10 answers are required");
   }
@@ -55,18 +56,18 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
     create: {
       userId,
       rollNumber,
-      answers: normalizedAnswers,
+      answers: {answers: normalizedAnswers},
     },
   });
 
   /* ---------------- EXTERNAL SERVICE (NON-BLOCKING) ---------------- */
-
-  axios.get("http://10.104.11.105:6969/user/register", {
-    params: {
-      rollno: rollNumber,
-      responses: JSON.stringify(normalizedAnswers),
-    },
-    timeout: 3000,
+  const data = {
+    rollno: rollNumber,
+    responses: normalizedAnswers,
+  }
+  console.log("Sending data to external service:", data);
+  axios.post("http://10.104.11.210:6969/user/register", data, {
+    timeout: 5000,
   }).catch(err => {
     console.error("External service error:", err.message);
   });
@@ -84,6 +85,7 @@ Rules:
 - sound human, not AI-generated
 - do not mention questions, quizzes, or prompts
 - output only the final profile text
+-no names 
 
 Answers:
 ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
@@ -105,7 +107,7 @@ ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
   }
 
   /* ---------------- USERNAME + AVATAR ---------------- */
-
+  
   const [username] = await prisma.$transaction(async (tx) => {
     const usernames = await tx.usernamePool.findMany({
       where: { gender, taken: false },
@@ -114,6 +116,8 @@ ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
     if (!usernames.length) throw new Error("No usernames left");
 
     const chosen = usernames[Math.floor(Math.random() * usernames.length)];
+    console.log("Chosen username:", chosen.name);
+    console.log("Chosen username ID:", chosen.id);
 
     await tx.usernamePool.update({
       where: { id: chosen.id },
@@ -131,7 +135,9 @@ ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
   const avatarUrl = `/${gender.toLowerCase()}/${avatarNumber}.png`;
 
   /* ---------------- FINAL UPDATE ---------------- */
-
+  console.log("username:", username.name);
+  console.log("avatarUrl:", avatarUrl);
+  console.log("poem:", poem);
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -245,6 +251,7 @@ const homePageContent = asyncHandler(async (req, res) => {
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+
 
   const likes = [];
   const resonance = [];

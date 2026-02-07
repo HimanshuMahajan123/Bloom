@@ -29,8 +29,7 @@ const generateJWT = (user) => {
   return jwt.sign(
     {
       id: user.id,
-      email: user.email,
-    },
+        },
     process.env.JWT_SECRET,
     { expiresIn: "7d" },
   );
@@ -130,6 +129,7 @@ const getMe = asyncHandler(async (req, res) => {
     select: {
       id: true,
       verified: true,
+      onboardingCompleted: true,
     },
   });
 
