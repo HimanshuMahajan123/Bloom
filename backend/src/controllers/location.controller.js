@@ -126,6 +126,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
 
       if (qualified.length >= MAX_SIGNALS) break;
     }
+   
 
     if (result.status === "rejected") {
       console.error("FAISS score failed:", result.reason?.message);

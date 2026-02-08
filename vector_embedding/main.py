@@ -102,6 +102,7 @@ def get_score(maleRollNo: str, femaleRollNo: str):
     female_vec = store.female_rollno_vectors[femaleRollNo]
 
     score = float(np.dot(male_vec, female_vec))
+    logger.info(f"Calculated score: {score}")
     return {"score": round(score, 2)}
 
 if(__name__ == "__main__"):
