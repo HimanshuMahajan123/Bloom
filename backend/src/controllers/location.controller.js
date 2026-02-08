@@ -17,15 +17,14 @@ import {
 /* ---------------- UPDATE LOCATION ---------------- */
 
 export const updateLocation = asyncHandler(async (req, res) => {
-  const { lat, lng } = req.body;
+  const { latitude, longitude } = req.body;
   const userId = req.user.id;
 
-  if (typeof lat !== "number" || typeof lng !== "number") {
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
     throw new ApiError(400, "Invalid coordinates");
   }
 
-  updateUserLocation(userId, lat, lng);
-
+  updateUserLocation(userId, latitude, longitude);
   return res.status(200).json(
     new ApiResponse(200, "Location updated")
   );
