@@ -56,7 +56,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
     create: {
       userId,
       rollNumber,
-      answers: { answers: normalizedAnswers },
+      answers: normalizedAnswers,
     },
   });
 
@@ -229,6 +229,7 @@ const homePageContent = asyncHandler(async (req, res) => {
       200,
       {
         items: results.map((u) => ({
+          id: u.id,
           username: u.username,
           poem: u.poem,
         })),
@@ -530,10 +531,51 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
     }),
   );
 });
+const matchInfo = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const otherUserId = req.params.id;
+
+  if (!otherUserId) {
+    throw new ApiError(400, "Target user ID is required");
+  }
+
+  // Check mutual LIKE
+  const [a, b] = await prisma.userInteraction.findMany({
+    where: {
+      OR: [
+        { fromUserId: userId, toUserId: otherUserId, state: "LIKED" },
+        { fromUserId: otherUserId, toUserId: userId, state: "LIKED" },
+      ],
+    },
+  });
+
+  if (!a || !b) {
+    throw new ApiError(403, "Not a mutual match");
+  }
+
+  const otherUser = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: {
+      rollNumber: true,
+      
+    },
+  });
+
+  if (!otherUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res.json(
+    new ApiResponse(200, otherUser, "Match info fetched successfully")
+  );
+});
+
+
 
 export {
   submitAnswersAndGenerateProfile,
   homePageContent,
   notificationsPanel,
   findPerfectMatches,
+  matchInfo
 };
