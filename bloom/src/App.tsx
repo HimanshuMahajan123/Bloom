@@ -38,7 +38,7 @@ const App = () => {
         overflow-hidden
         bg-gradient-to-b
        from-[#700912] via-[#c4505a] to-[#dd908c]
-        text-[#4a2c2a]
+        text-[#4a2c2a] no-scrollbar
       "
     >
       <Routes>

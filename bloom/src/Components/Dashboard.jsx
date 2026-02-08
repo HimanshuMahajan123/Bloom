@@ -11,13 +11,17 @@ import { checkNearbyUsers } from "../api/checkNearbyUsers";
 import { rightSwipe, leftSwipe } from "../api/Swpie";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-
+import ExpandedFeedCard from "./ExpandedFeedCard";
+import RevealCard from "./RevealCard";
+import SwipeCard from "./SwipeCard";
 /* ---------- helpers ---------- */
 const truncateWords = (text, limit = 80) => {
   if (!text) return "";
   const words = text.split(" ");
   return words.length <= limit ? text : words.slice(0, limit).join(" ") + "…";
 };
+
+
 
 /* ---------- FeedCard ---------- */
 const FeedCard = ({ item, onExpand }) => (
@@ -50,13 +54,19 @@ export default function Dashboard() {
   const [signals, setSignals] = useState([]);
   const [likes, setLikes] = useState([]);
   const [resonance, setResonance] = useState([]);
-
   const [expandedProfile, setExpandedProfile] = useState(null);
   const [swipeClass, setSwipeClass] = useState("");
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [notifTab, setNotifTab] = useState("signals");
 
   const nearbyCheckIntervalRef = useRef(null);
+  const [isTouch, setIsTouch] = useState(false);
+
+useEffect(() => {
+  setIsTouch(
+    "ontouchstart" in window || navigator.maxTouchPoints > 0
+  );
+}, []);
 
   /* ---------- LOCATION ---------- */
   useEffect(() => {
@@ -66,8 +76,13 @@ export default function Dashboard() {
 
     nearbyCheckIntervalRef.current = setInterval(async () => {
       const res = await checkNearbyUsers();
-      setSignals(res?.signals || []);
-    }, 30000);
+      // console.log("Nearby check result:", res);
+setSignals(prev =>
+  res?.signals && res.signals.length > 0
+    ? res.signals
+    : prev
+);
+    }, 30000); // every 30 seconds
 
     return () => clearInterval(nearbyCheckIntervalRef.current);
   }, []);
@@ -78,6 +93,30 @@ export default function Dashboard() {
       setFeedData(res?.data?.items || [])
     );
   }, []);
+
+  const touchStartX = useRef(0);
+const touchEndX = useRef(0);
+
+const handleTouchStart = (e) => {
+  touchStartX.current = e.touches[0].clientX;
+};
+
+const handleTouchEnd = () => {
+  const diff = touchStartX.current - touchEndX.current;
+
+  if (Math.abs(diff) < 60) return; // ignore small swipes
+
+  if (diff > 0) {
+    handleSwipe("left");
+  } else {
+    handleSwipe("right");
+  }
+};
+
+const handleTouchMove = (e) => {
+  touchEndX.current = e.touches[0].clientX;
+};
+
 
   /* ---------- NOTIFICATIONS ---------- */
   const openNotifications = async () => {
@@ -160,45 +199,55 @@ export default function Dashboard() {
       <div className="flex flex-col items-center relative z-10">
         {feedData.map((item) => (
           <FeedCard
-            key={item.username}
-            item={item}
-            onExpand={setExpandedProfile}
-          />
+  key={item.id}
+  item={item}
+  onExpand={(item) =>
+    setExpandedProfile({ ...item, source: "feed" })
+  }
+/>
+
         ))}
       </div>
+{/* ---------- Expanded Cards ---------- */}
+{/* Feed → Read-only */}
+{expandedProfile?.source === "feed" && (
+  <ExpandedFeedCard
+    profile={expandedProfile}
+    onClose={() => setExpandedProfile(null)}
+  />
+)}
 
-      {/* Profile Modal */}
-      {expandedProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className={`relative z-10 max-w-lg w-full rounded-3xl px-8 py-6 ${swipeClass}`}
-            style={{
-              backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85), rgba(255,248,237,0.65)), url(${multi_heart})`,
-              backgroundSize: "cover, 220px",
-            }}
-          >
-            <div className="flex justify-between">
-              <h2 className="font-playfair italic text-2xl">
-                {expandedProfile.username}
-              </h2>
-              <button onClick={() => setExpandedProfile(null)}>
-                <X />
-              </button>
-            </div>
+{/* Signals & Likes → Swipe */}
+{expandedProfile &&
+  (expandedProfile.source === "signals" ||
+    expandedProfile.source === "likes") && (
+    <SwipeCard
+      expandedProfile={expandedProfile}
+      swipeClass={swipeClass}
+      isTouch={isTouch}
+      handleTouchStart={handleTouchStart}
+      handleTouchMove={handleTouchMove}
+      handleTouchEnd={handleTouchEnd}
+      handleSwipe={handleSwipe}
+      onClose={() => setExpandedProfile(null)}
+    />
+)}
 
-            <p className="mt-4 font-lora text-sm">
-              {expandedProfile.poem || "No profile text"}
-            </p>
+{/* Resonance → Reveal */}
+{expandedProfile?.source === "resonance" && (
+  <RevealCard
+    expandedProfile={expandedProfile}
+    onClose={() => setExpandedProfile(null)}
+  />
+)}
 
-           
-          </div>
-        </div>
-      )}
+
+ 
+
 
     {/* Notifications Panel */}
 {notifPanelOpen && (
-  <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6">
+  <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
     <div className="w-full max-w-md bg-white/95 rounded-3xl px-4 py-4 shadow-2xl flex flex-col">
 
       {/* Header */}
@@ -243,11 +292,14 @@ export default function Dashboard() {
             : resonance
           ).map((s) => (
             <button
-              key={s.id}
+              key={notifTab+s.id}
               onClick={() => {
-                setExpandedProfile({ ...s, isSignal: true });
-                setNotifPanelOpen(false);
-              }}
+  setExpandedProfile({
+    ...s,
+    source: notifTab, // "signals" | "likes" | "resonance"
+  });
+}}
+
               className="
                 w-full text-left rounded-2xl px-4 py-4
                 bg-[#fff7f6]

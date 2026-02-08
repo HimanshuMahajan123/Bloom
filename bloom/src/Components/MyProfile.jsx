@@ -4,6 +4,8 @@ import { useAuth } from "../contexts/AuthContext";
 import multi_heart from "../assets/multi_heart.png";
 import red_heart from "../assets/red_heart.png";
 import physics_balloon from "../assets/physics_balloon.png";
+import { Link, Navigate } from "react-router";
+import { ArrowLeft } from "lucide-react";
 const MyProfile = () => {
   const { user, logout } = useAuth();
 
@@ -62,10 +64,12 @@ const MyProfile = () => {
       >
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
+          <Link to='/app'><ArrowLeft></ArrowLeft> </Link>
+          <div className="flex gap-1 items-center">
           <h2 className="text-2xl font-playfair italic font-medium text-[#5b2a2a] truncate">
             {user.username}
           </h2>
-
+          </div>
           <button
             onClick={logout}
             className="

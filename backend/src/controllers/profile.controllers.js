@@ -56,7 +56,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
     create: {
       userId,
       rollNumber,
-      answers: { answers: normalizedAnswers },
+      answers: normalizedAnswers,
     },
   });
 
@@ -229,6 +229,7 @@ const homePageContent = asyncHandler(async (req, res) => {
       200,
       {
         items: results.map((u) => ({
+          id: u.id,
           username: u.username,
           poem: u.poem,
         })),
@@ -242,12 +243,11 @@ const homePageContent = asyncHandler(async (req, res) => {
 const notificationsPanel = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  /* ---------------- 1️⃣ Incoming Likes ---------------- */
+  /* ---------------- 1️⃣ Fetch ALL interactions involving me ---------------- */
 
-  const incomingLikes = await prisma.userInteraction.findMany({
+  const interactions = await prisma.userInteraction.findMany({
     where: {
-      toUserId: userId,
-      state: "LIKED",
+      OR: [{ fromUserId: userId }, { toUserId: userId }],
     },
     include: {
       fromUser: {
@@ -260,76 +260,84 @@ const notificationsPanel = asyncHandler(async (req, res) => {
           onboardingCompleted: true,
         },
       },
+      toUser: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          poem: true,
+          verified: true,
+          onboardingCompleted: true,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
   });
 
-  if (!incomingLikes.length) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, { likes: [], resonance: [] }));
+  /* ---------------- 2️⃣ Group by other user ---------------- */
+
+  const map = new Map();
+
+  for (const i of interactions) {
+    const other = i.fromUserId === userId ? i.toUser : i.fromUser;
+
+    if (!other || !other.verified || !other.onboardingCompleted) continue;
+
+    if (!map.has(other.id)) {
+      map.set(other.id, {
+        user: other,
+        meToThem: null,
+        themToMe: null,
+        timestamps: [],
+      });
+    }
+
+    const entry = map.get(other.id);
+
+    if (i.fromUserId === userId) {
+      entry.meToThem = i.state;
+    } else {
+      entry.themToMe = i.state;
+    }
+
+    entry.timestamps.push(i.updatedAt);
   }
-
-  /* ---------------- 2️⃣ Bulk Reciprocal Lookup ---------------- */
-
-  const fromIds = incomingLikes.map((i) => i.fromUserId);
-
-  const reciprocals = await prisma.userInteraction.findMany({
-    where: {
-      fromUserId: userId,
-      toUserId: { in: fromIds },
-      state: "LIKED",
-    },
-  });
-
-  const reciprocalMap = new Map();
-  reciprocals.forEach((r) => {
-    reciprocalMap.set(r.toUserId, r);
-  });
 
   /* ---------------- 3️⃣ Classify ---------------- */
 
   const likes = [];
   const resonance = [];
 
-  for (const i of incomingLikes) {
-    const u = i.fromUser;
+  for (const entry of map.values()) {
+    const { user, meToThem, themToMe, timestamps } = entry;
 
-    if (!u || !u.verified || !u.onboardingCompleted) continue;
+    // ❌ Any rejection kills the entry
+    if (meToThem === "REJECTED" || themToMe === "REJECTED") {
+      continue;
+    }
 
-    const reciprocal = reciprocalMap.get(i.fromUserId);
-
-    if (reciprocal) {
+    // ❤️ Mutual like
+    if (meToThem === "LIKED" && themToMe === "LIKED") {
       resonance.push({
-        userId: u.id,
-        username: u.username,
-        avatarUrl: u.avatarUrl,
-        poem: u.poem,
-        matchedAt: new Date(
-          Math.max(
-            new Date(i.updatedAt).getTime(),
-            new Date(reciprocal.updatedAt).getTime(),
-          ),
-        ),
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        poem: user.poem,
+        matchedAt: new Date(Math.max(...timestamps.map((t) => t.getTime()))),
       });
-    } else {
+      continue;
+    }
+
+    // 💌 One-sided like
+    if (meToThem === "LIKED" || themToMe === "LIKED") {
       likes.push({
-        userId: u.id,
-        username: u.username,
-        avatarUrl: u.avatarUrl,
-        poem: u.poem,
-        receivedAt: i.createdAt,
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        poem: user.poem,
+        receivedAt: new Date(Math.max(...timestamps.map((t) => t.getTime()))),
       });
     }
   }
-
-  /* ---------------- 4️⃣ Signals ----------------
-     Live signals should be fetched from /signal/check.
-     Keep realtime + persistent logic separate.
-  */
-
-  const signals = [];
 
   return res
     .status(200)
@@ -342,4 +350,236 @@ const notificationsPanel = asyncHandler(async (req, res) => {
     );
 });
 
-export { submitAnswersAndGenerateProfile, homePageContent, notificationsPanel };
+const findPerfectMatches = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const myGender = req.user.gender;
+  const myRoll = req.user.rollNumber;
+
+  const PERFECT_THRESHOLD = 0.7;
+  const TTL_MINUTES = 60 * 24; // 24 hours
+
+  /* --------------------------------------------------
+  Fetch all eligible opposite-gender users
+  -------------------------------------------------- */
+
+  const allCandidates = await prisma.user.findMany({
+    where: {
+      id: { not: userId },
+      gender: { not: myGender },
+      verified: true,
+      onboardingCompleted: true,
+    },
+    select: {
+      id: true,
+      rollNumber: true,
+      username: true,
+      avatarUrl: true,
+    },
+  });
+
+  if (!allCandidates.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  const candidateIds = allCandidates.map((u) => u.id);
+
+  /* --------------------------------------------------
+     2️⃣ Remove anyone with ANY past interaction
+  -------------------------------------------------- */
+
+  const interactions = await prisma.userInteraction.findMany({
+    where: {
+      OR: [
+        { fromUserId: userId, toUserId: { in: candidateIds } },
+        { toUserId: userId, fromUserId: { in: candidateIds } },
+      ],
+    },
+    select: {
+      fromUserId: true,
+      toUserId: true,
+    },
+  });
+
+  const blocked = new Set();
+  interactions.forEach((i) => {
+    blocked.add(i.fromUserId);
+    blocked.add(i.toUserId);
+  });
+
+  const interactionFiltered = allCandidates.filter((u) => !blocked.has(u.id));
+
+  if (!interactionFiltered.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  const interactionIds = interactionFiltered.map((u) => u.id);
+
+  /* --------------------------------------------------
+    Remove users with existing unexpired signals
+  -------------------------------------------------- */
+  const activeSignals = await prisma.signal.findMany({
+    where: {
+      expiresAt: { gt: new Date() },
+      OR: [
+        {
+          fromUserId: userId,
+          toUserId: { in: interactionIds },
+        },
+        {
+          toUserId: userId,
+          fromUserId: { in: interactionIds },
+        },
+      ],
+    },
+    select: {
+      fromUserId: true,
+      toUserId: true,
+    },
+  });
+
+  // count directions per pair
+  const signalCount = new Map();
+
+  for (const s of activeSignals) {
+    const other = s.fromUserId === userId ? s.toUserId : s.fromUserId;
+
+    signalCount.set(other, (signalCount.get(other) || 0) + 1);
+  }
+
+  // exclude only if both directions exist
+  const fullySignaled = new Set();
+  for (const [otherId, count] of signalCount.entries()) {
+    if (count >= 2) fullySignaled.add(otherId);
+  }
+
+  const signalFiltered = interactionFiltered.filter(
+    (u) => !fullySignaled.has(u.id),
+  );
+
+  if (!signalFiltered.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  /* --------------------------------------------------
+     4️⃣ FAISS scoring (parallel)
+  -------------------------------------------------- */
+
+  const scored = await Promise.allSettled(
+    signalFiltered.map((u) => {
+      let maleRoll, femaleRoll;
+
+      if (myGender === "MALE") {
+        maleRoll = myRoll;
+        femaleRoll = u.rollNumber;
+      } else {
+        maleRoll = u.rollNumber;
+        femaleRoll = myRoll;
+      }
+
+      return axios
+        .get(process.env.FAISS_SERVICE_URL + "/score", {
+          params: {
+            maleRollNo: maleRoll,
+            femaleRollNo: femaleRoll,
+          },
+          timeout: 2000,
+        })
+        .then((r) => ({
+          user: u,
+          score: Number(r.data?.score || 0),
+        }));
+    }),
+  );
+
+  const qualified = [];
+
+  for (const r of scored) {
+    if (r.status === "fulfilled" && r.value.score >= PERFECT_THRESHOLD) {
+      qualified.push(r.value);
+    }
+  }
+
+  if (!qualified.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  /* --------------------------------------------------
+     5️⃣ Insert signals atomically
+  -------------------------------------------------- */
+
+  const expiresAt = new Date(Date.now() + TTL_MINUTES * 60 * 1000);
+
+  await prisma.$transaction(
+    qualified.map((q) =>
+      prisma.signal.create({
+        data: {
+          fromUserId: userId,
+          toUserId: q.user.id,
+          score: q.score,
+          expiresAt,
+          source: "PROXIMITY",
+        },
+      }),
+    ),
+  );
+
+  /* --------------------------------------------------
+     6️⃣ Response
+  -------------------------------------------------- */
+
+  return res.json(
+    new ApiResponse(200, {
+      matches: qualified.map((q) => ({
+        id: q.user.id,
+        username: q.user.username,
+        avatarUrl: q.user.avatarUrl,
+        score: q.score,
+      })),
+    }),
+  );
+});
+const matchInfo = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const otherUserId = req.params.userId;
+
+  if (!otherUserId) {
+    throw new ApiError(400, "Target user ID is required");
+  }
+
+  // Check mutual LIKE
+  const [a, b] = await prisma.userInteraction.findMany({
+    where: {
+      OR: [
+        { fromUserId: userId, toUserId: otherUserId, state: "LIKED" },
+        { fromUserId: otherUserId, toUserId: userId, state: "LIKED" },
+      ],
+    },
+  });
+
+  if (!a || !b) {
+    throw new ApiError(403, "Not a mutual match");
+  }
+
+  const otherUser = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: {
+      rollNumber: true,
+    },
+  });
+
+  if (!otherUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res.json(
+    new ApiResponse(200, otherUser, "Match info fetched successfully"),
+  );
+});
+
+export {
+  submitAnswersAndGenerateProfile,
+  homePageContent,
+  notificationsPanel,
+  findPerfectMatches,
+  matchInfo,
+};

@@ -4,7 +4,7 @@ export const checkNearbyUsers = async () => {
   try {
     const response = await api.get("/location/signal/check");
 
-    return response.data?.data?.signals || [];
+    return response.data?.data || [];
   } catch (error: any) {
     console.error("Error checking nearby users:", error);
 
