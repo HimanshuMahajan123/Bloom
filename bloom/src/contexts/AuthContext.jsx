@@ -9,7 +9,7 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const logout = () => {
-    api.post("/auth/logout").finally(() => {
+    api.get("/auth/logout").finally(() => {
       setUser(null);
     });
   };

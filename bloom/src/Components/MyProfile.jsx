@@ -87,7 +87,7 @@ const MyProfile = () => {
         </div>
 
         {/* Content */}
-        <div className="font-lora text-sm text-[#4a2c2a] whitespace-pre-wrap leading-relaxed">
+        <div className="font-lora text-sm text-[#4a2c2a] whitespace-pre-wrap leading-relaxed font-lora italic tracking-wide">
           {user.poem || user.text || "No profile text available."}
         </div>
       </div>

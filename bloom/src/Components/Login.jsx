@@ -9,6 +9,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowForm(true), 300);
@@ -31,6 +32,7 @@ const Login = () => {
       setError("");
       setLoading(true);
       await requestMagicLink(email); // your API call
+      setSent(true);
       // success flow handled by backend / navigation
     } catch (err) {
       setError("Something went wrong. Please try again.");
@@ -64,23 +66,8 @@ const Login = () => {
           Love, delivered by air
         </h1>
 
-        <p className="mt-3 text-sm font-lora italic text-white/80">
-          Some connections don’t need words.
-        </p>
 
-        {/* BALLOON */}
-        <div className="mt-10 flex justify-center">
-          <img
-            src={login_balloon}
-            alt="Love balloon"
-            className="
-              w-32
-              opacity-90
-              drop-shadow-xl
-              animate-[float_6s_ease-in-out_infinite]
-            "
-          />
-        </div>
+        
 
         {/* FORM AREA */}
         <div className="relative mt-10 flex justify-center">
@@ -97,7 +84,8 @@ const Login = () => {
             }}
           />
 
-          {/* FORM */}
+          {!sent ?
+          (
           <div
             className={`
               relative
@@ -113,6 +101,19 @@ const Login = () => {
               ${showForm ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}
             `}
           >
+            {/* BALLOON */}
+        <div className=" flex justify-center">
+          <img
+            src={login_balloon}
+            alt="Love balloon"
+            className="
+              w-32
+              opacity-90
+              drop-shadow-xl
+              animate-[float_6s_ease-in-out_infinite]
+            "
+          />
+        </div>
             {/* MOTIVE TEXT */}
             <p className="text-xs font-lora italic text-white/80 px-4 leading-relaxed">
               Where should your spark begin?  
@@ -197,6 +198,45 @@ const Login = () => {
             </button>
 
           </div>
+          )
+          :  (
+  /* SUCCESS STATE */
+  <div
+    className="
+      relative
+      z-10
+      w-full
+      max-w-sm
+      flex
+      flex-col
+      items-center
+      gap-4
+      text-center
+      animate-fade-in
+    "
+  >
+    <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+      <Heart className="text-[#af323f]" size={24} />
+    </div>
+
+    <p className="font-playfair italic text-lg text-white/95">
+      Your spark is on its way
+    </p>
+
+    <p className="font-lora text-sm text-white/80 leading-relaxed px-4">
+      We’ve sent a little something to <br />
+      <span className="font-medium">{email}</span>  
+      <br />
+      Open your inbox to let it glow ✨
+    </p>
+
+    <p className="text-xs font-lora italic text-white/60">
+      Didn’t see it? Check your spam folder.
+    </p>
+  </div>
+)}
+
+            
         </div>
 
       </div>

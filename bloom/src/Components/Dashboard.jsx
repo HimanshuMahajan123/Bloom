@@ -364,7 +364,7 @@ const Dashboard = () => {
       {/* feed list */}
       <div className="flex flex-col items-center relative z-10">
         {loadingFeed ? (
-          <div className="py-8">Loading feed…</div>
+          <div className="py-8"></div>
         ) : feedData.length === 0 ? (
           <div className="py-8 text-sm">No profiles yet.</div>
         ) : (
