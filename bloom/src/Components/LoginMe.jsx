@@ -9,12 +9,12 @@ const LoginMe = () => {
   useEffect(() => {
     if (!loading) {
       if (user && user.onboardingCompleted) {
-        navigate("/app");
+        navigate("/app" , { replace: true });
       } else if(user && user.verified && !user.onboardingCompleted) {
-        navigate("/generate-profile");
+        navigate("/generate-profile", { replace: true });
       }
       else {
-        navigate("/login");
+        navigate("/login", { replace: true });
       }
     }
   }, [user, loading]);

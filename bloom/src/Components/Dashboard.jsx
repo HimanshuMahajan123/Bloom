@@ -9,7 +9,8 @@ import { fetchNotifications } from "../api/notifications";
 import { fetchHome } from "../api/fetchHome";
 import { updateUserLocation } from "../api/updateLocation";
 import { checkNearbyUsers } from "../api/checkNearbyUsers";
-
+import { NavLink } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 /* ---------- helpers ---------- */
 
 const truncateWords = (text, limit = 80) => {
@@ -73,6 +74,7 @@ const Dashboard = () => {
   const [expandedProfile, setExpandedProfile] = useState(null);
   const [loadingNotif, setLoadingNotif] = useState(false);
   const [loadingFeed, setLoadingFeed] = useState(false);
+  const {user} = useAuth();
   const nearbyCheckIntervalRef = useRef(null);
 
   // ---------------- LOCATION TRACKING ----------------
@@ -309,23 +311,55 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* top bar */}
-      <div className="flex justify-between items-center mb-6 relative z-10 px-2">
-        <div>
-          <p className="font-playfair italic text-[#fafafa]">Hello</p>
-          <p className="font-lora text-sm text-[#fafafa]/80">
-            Your spark is live
-          </p>
-        </div>
+  {/* Top Bar */}
+<div className="flex justify-between items-center mb-6 relative z-10 px-2">
+  {/* Left: User Info */}
+  <div className="flex items-center gap-3 min-w-0">
+  <NavLink to="/profile" className="flex items-center gap-3 min-w-0">
+      <img
+      src={user?.avatarUrl || "/males/1.png"}
+      alt="Profile"
+      className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
+    />
+  </NavLink>
 
-        <button
-          onClick={openNotifications}
-          className="p-2 rounded-full bg-white/80 shadow"
-          aria-label="Open Signals"
-        >
-          <Bell size={18} className="text-[#5b2a2a]" />
-        </button>
-      </div>
+    <div className="flex flex-col leading-tight truncate gap-0">
+      <p className="font-playfair italic text-[#fafafa] truncate">
+        {user?.username}
+      </p>
+      <p className="font-lora text-sm text-[#fafafa]/60">
+          {locationPermission === "denied"
+            ? "location Denied"
+            : userLocation.latitude
+            ? `searching...`
+            : "Fetching location…"}
+      </p>
+    </div>
+  </div>
+
+  {/* Right: Notifications */}
+  <button
+    onClick={openNotifications}
+    className="
+      relative
+      p-2.5
+      rounded-full
+      bg-white/20
+      backdrop-blur-md
+      hover:bg-white/30
+      active:scale-95
+      transition
+      shadow-sm
+    "
+    aria-label="Open Signals"
+  >
+    <Bell size={18} className="text-white" />
+
+    {/* Notification dot */}
+    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" />
+  </button>
+</div>
+
 
       {/* feed list */}
       <div className="flex flex-col items-center relative z-10">
