@@ -19,7 +19,7 @@ import {
 export const updateLocation = asyncHandler(async (req, res) => {
   const { latitude, longitude } = req.body;
   const userId = req.user.id;
-
+  console.log(`Received location update from user ${userId}: (${latitude}, ${longitude})`);
   if (typeof latitude !== "number" || typeof longitude !== "number") {
     throw new ApiError(400, "Invalid coordinates");
   }
