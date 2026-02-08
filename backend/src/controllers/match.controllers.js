@@ -97,12 +97,15 @@ export const leftSwipe = asyncHandler
 
   await prisma.$transaction(async (tx) => {
     // remove signal
-    await tx.signal.deleteMany({
-      where: {
-        fromUserId: otherUserId,
-        toUserId: userId,
-      },
-    });
+   await tx.signal.deleteMany({
+  where: {
+    OR: [
+      { fromUserId: otherUserId, toUserId: userId },
+      { fromUserId: userId, toUserId: otherUserId },
+    ],
+  },
+});
+
 
     // record rejection
     await tx.userInteraction.upsert({
