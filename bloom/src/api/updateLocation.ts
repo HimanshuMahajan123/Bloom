@@ -5,7 +5,7 @@ export const updateUserLocation = async (
   longitude: number,
 ) => {
   try {
-    const response = await api.post("/api/location/update", {
+    const response = await api.post("/location/update", {
       latitude,
       longitude,
       timestamp: new Date().toISOString(),
