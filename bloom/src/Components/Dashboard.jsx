@@ -20,7 +20,7 @@ const truncateWords = (text, limit = 80) => {
 
 /* ---------- FeedCard (stateless) ---------- */
 
-const FeedCard = ({ item, onExpand  }) => {
+const FeedCard = ({ item, onExpand }) => {
   return (
     <div
       className="
@@ -121,16 +121,12 @@ const Dashboard = () => {
 
     setUserLocation(locationData);
 
-    console.log("Location updated:", locationData);
-
     // OPTIONAL: send to backend
-    /*
-  try {
-    await updateUserLocation(latitude, longitude);
-  } catch (err) {
-    console.error("Backend location update failed:", err);
-  }
-  */
+    try {
+      await updateUserLocation(latitude, longitude);
+    } catch (err) {
+      console.error("Backend location update failed:", err);
+    }
   };
 
   // Handle errors
@@ -163,8 +159,6 @@ const Dashboard = () => {
   // Start tracking (once + every 60s)
   const startLocationTracking = async () => {
     try {
-      console.log("Starting location tracking...");
-
       if (!navigator.geolocation) {
         throw new Error("Geolocation is not supported");
       }
@@ -288,7 +282,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
+    <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
       {/* ambient hearts & balloons */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
         {[...Array(150)].map((_, i) => (
@@ -352,19 +346,18 @@ const Dashboard = () => {
 
       {/* profile modal (expanded) */}
       {expandedProfile && (
-        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center px-6 py-12" >
+        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center px-6 py-12">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setExpandedProfile(null)}
-            
           />
           <div
             className="relative z-10 max-w-lg w-full bg-[#ffaea8] rounded-3xl px-8 py-6 overflow-auto"
-  style={{
-        backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
-        backgroundSize: "cover, 220px",
-        backgroundRepeat: "no-repeat, repeat",
-      }}            
+            style={{
+              backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
+              backgroundSize: "cover, 220px",
+              backgroundRepeat: "no-repeat, repeat",
+            }}
           >
             <div className="flex justify-between items-start ">
               <h2 className="text-2xl text-center flex space-center font-playfair italic font-medium text-[#5b2a2a]">
@@ -380,8 +373,6 @@ const Dashboard = () => {
                 expandedProfile.text ||
                 "No profile text available."}
             </div>
-
-          
           </div>
         </div>
       )}
