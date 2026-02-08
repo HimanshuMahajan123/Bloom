@@ -34,6 +34,9 @@ class MatchRequest(BaseModel):
 @app.on_event("startup")
 def startup():
     store.load_indexes()
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 @app.post("/user/register")
 def register_user(data: RegisterRequest):
     if len(data.responses) != 10:
