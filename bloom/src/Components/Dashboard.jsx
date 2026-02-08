@@ -120,6 +120,7 @@ const Dashboard = () => {
     };
 
     setUserLocation(locationData);
+    console.log("Location updated:", locationData);
 
     // OPTIONAL: send to backend
     try {
