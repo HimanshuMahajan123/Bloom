@@ -1,5 +1,6 @@
 const CENTRAL_THRESHOLD = 0.6;
 const MAX_SIGNALS = 5;
+
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
@@ -8,15 +9,12 @@ import axios from "axios";
 
 import { updateUserLocation, getNearbyUsers } from "../store/locationStore.js";
 
-
 /* ---------------- UPDATE LOCATION ---------------- */
 
 export const updateLocation = asyncHandler(async (req, res) => {
   const { latitude, longitude } = req.body;
   const userId = req.user.id;
-  console.log(
-    `Received location update from user ${userId}: (${latitude}, ${longitude})`,
-  );
+
   if (typeof latitude !== "number" || typeof longitude !== "number") {
     throw new ApiError(400, "Invalid coordinates");
   }
@@ -33,7 +31,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   const myRoll = req.user.rollNumber;
   const now = new Date();
 
-  /* 1️⃣ Existing active signals */
+  /* 1️⃣ Fetch inbox signals ONLY */
   const existingSignals = await prisma.signal.findMany({
     where: {
       toUserId: userId,
@@ -45,12 +43,15 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
           id: true,
           username: true,
           avatarUrl: true,
+          poem: true,
         },
       },
     },
     orderBy: { createdAt: "desc" },
+    take: MAX_SIGNALS,
   });
 
+  /* If inbox already full → return */
   if (existingSignals.length >= MAX_SIGNALS) {
     return res.json(
       new ApiResponse(200, {
@@ -58,9 +59,10 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
           id: s.fromUser.id,
           username: s.fromUser.username,
           avatarUrl: s.fromUser.avatarUrl,
+          poem: s.fromUser.poem,
           score: s.score,
         })),
-      }),
+      })
     );
   }
 
@@ -70,9 +72,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     return res.json(new ApiResponse(200, { signals: [] }));
   }
 
-  const alreadySignaled = new Set(existingSignals.map(s => s.fromUserId));
-
-  /* 3️⃣ Remove users with interactions */
+  /* 3️⃣ Block users with any interaction */
   const interactions = await prisma.userInteraction.findMany({
     where: {
       OR: [
@@ -89,11 +89,16 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     blocked.add(i.toUserId);
   });
 
+  /* 4️⃣ Remove already-signaled users */
+  const alreadySignaled = new Set(
+    existingSignals.map(s => s.fromUserId)
+  );
+
   const candidates = nearby.filter(
     uid =>
       uid !== userId &&
-      !alreadySignaled.has(uid) &&
-      !blocked.has(uid),
+      !blocked.has(uid) &&
+      !alreadySignaled.has(uid)
   );
 
   if (!candidates.length) {
@@ -103,27 +108,31 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
           id: s.fromUser.id,
           username: s.fromUser.username,
           avatarUrl: s.fromUser.avatarUrl,
+          poem: s.fromUser.poem,
           score: s.score,
         })),
-      }),
+      })
     );
   }
 
-  /* 4️⃣ Fetch profiles */
+  /* 5️⃣ Fetch candidate profiles */
   const users = await prisma.user.findMany({
     where: {
       id: { in: candidates },
       gender: { not: myGender },
+      verified: true,
+      onboardingCompleted: true,
     },
     select: {
       id: true,
       rollNumber: true,
       username: true,
       avatarUrl: true,
+      poem: true,
     },
   });
 
-  /* 5️⃣ Score via FAISS */
+  /* 6️⃣ Score via FAISS */
   const scored = await Promise.allSettled(
     users.map(u => {
       const maleRoll = myGender === "MALE" ? myRoll : u.rollNumber;
@@ -131,14 +140,17 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
 
       return axios
         .get(process.env.FAISS_SERVICE_URL + "/score", {
-          params: { maleRollNo: maleRoll, femaleRollNo: femaleRoll },
+          params: {
+            maleRollNo: maleRoll,
+            femaleRollNo: femaleRoll,
+          },
           timeout: 1500,
         })
         .then(r => ({
           user: u,
           score: Number(r.data?.score || 0),
         }));
-    }),
+    })
   );
 
   const newSignals = [];
@@ -150,6 +162,9 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     ) {
       const { user, score } = result.value;
 
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      /* Create inbox signal for ME */
       await prisma.signal.upsert({
         where: {
           fromUserId_toUserId: {
@@ -157,12 +172,29 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
             toUserId: userId,
           },
         },
-        update: {},
+        update: { expiresAt, score },
         create: {
           fromUserId: user.id,
           toUserId: userId,
           score,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+          expiresAt,
+        },
+      });
+
+      /* Create inbox signal for THEM */
+      await prisma.signal.upsert({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: userId,
+            toUserId: user.id,
+          },
+        },
+        update: { expiresAt, score },
+        create: {
+          fromUserId: userId,
+          toUserId: user.id,
+          score,
+          expiresAt,
         },
       });
 
@@ -170,6 +202,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
         id: user.id,
         username: user.username,
         avatarUrl: user.avatarUrl,
+        poem: user.poem,
         score,
       });
 
@@ -184,15 +217,16 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
           id: s.fromUser.id,
           username: s.fromUser.username,
           avatarUrl: s.fromUser.avatarUrl,
-          score: s.score,
           poem: s.fromUser.poem,
+          score: s.score,
         })),
         ...newSignals,
       ],
-    }),
+    })
   );
 });
 
+/* ---------------- GET SIGNAL SCORE ---------------- */
 
 export const getSignalScore = asyncHandler(async (req, res) => {
   const userId = req.user.id;
@@ -211,12 +245,8 @@ export const getSignalScore = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  const me = users.find((u) => u.id === userId);
-  const other = users.find((u) => u.id === otherUserId);
-
-  if (!me || !other) {
-    throw new ApiError(404, "User not found");
-  }
+  const me = users.find(u => u.id === userId);
+  const other = users.find(u => u.id === otherUserId);
 
   if (me.gender === other.gender) {
     return res.json(new ApiResponse(200, { score: 0 }));
@@ -225,23 +255,24 @@ export const getSignalScore = asyncHandler(async (req, res) => {
   const male = me.gender === "MALE" ? me : other;
   const female = me.gender === "FEMALE" ? me : other;
 
+  let score = 0;
+
   try {
-    const { data } = await axios.get(process.env.FAISS_SERVICE_URL + "/score", {
-      params: {
-        maleRollNo: male.rollNumber,
-        femaleRollNo: female.rollNumber,
-      },
-      timeout: 2000,
-    });
+    const { data } = await axios.get(
+      process.env.FAISS_SERVICE_URL + "/score",
+      {
+        params: {
+          maleRollNo: male.rollNumber,
+          femaleRollNo: female.rollNumber,
+        },
+        timeout: 2000,
+      }
+    );
 
     score = Number(data?.score || 0);
   } catch (err) {
     console.error("FAISS score error:", err.message);
   }
 
-  return res.json(
-    new ApiResponse(200, {
-      score,
-    }),
-  );
+  return res.json(new ApiResponse(200, { score }));
 });

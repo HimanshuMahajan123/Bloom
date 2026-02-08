@@ -191,21 +191,7 @@ export default function Dashboard() {
               {expandedProfile.poem || "No profile text"}
             </p>
 
-            {/* Swipe Buttons */}
-            <div className="mt-6 flex justify-center gap-6">
-              <button
-                onClick={() => handleSwipe("left")}
-                className="px-6 py-3 rounded-full bg-white/70"
-              >
-                Not my spark
-              </button>
-              <button
-                onClick={() => handleSwipe("right")}
-                className="px-6 py-3 rounded-full bg-[#af323f] text-white"
-              >
-                Feel the spark ❤️
-              </button>
-            </div>
+           
           </div>
         </div>
       )}
