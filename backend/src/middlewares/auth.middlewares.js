@@ -20,6 +20,7 @@ export const verifyjwt = asyncHandler(async (req, res, next) => {
       select: {
         id: true,
         rollNumber: true,
+        gender: true,
       },
     });
 
