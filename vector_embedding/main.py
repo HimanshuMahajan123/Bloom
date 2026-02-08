@@ -36,6 +36,7 @@ def startup():
     store.load_indexes()
 @app.get("/health")
 def health_check():
+    print("Health check OK")
     return {"status": "ok"}
 @app.post("/user/register")
 def register_user(data: RegisterRequest):
