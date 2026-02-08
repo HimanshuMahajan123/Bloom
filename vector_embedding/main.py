@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List
@@ -6,7 +7,8 @@ from vectorization import create_weighted_vector
 import threading, time
 import numpy as np
 
-
+import logging
+logging.basicConfig(level=logging.INFO)
 
 def autosave():
     while True:
@@ -36,7 +38,7 @@ def startup():
     store.load_indexes()
 @app.get("/health")
 def health_check():
-    print("Health check OK")
+    logger.info("Health check endpoint called")
     return {"status": "ok"}
 @app.post("/user/register")
 def register_user(data: RegisterRequest):
@@ -53,7 +55,7 @@ def register_user(data: RegisterRequest):
     store.save_indexes()   # 🔥 ADD THIS LINE
     print("STORE males:", store.male_rollno_vectors.keys())
     print("STORE females:", store.female_rollno_vectors.keys())
-
+    logger.info(f"Registered user {data.rollno} with gender {gender}")
     return {
         "status": "success",
         "message": "User vector stored"
@@ -89,7 +91,7 @@ def find_matches(data: MatchRequest):
     return {"matches": matches}
 @app.get("/score")
 def get_score(maleRollNo: str, femaleRollNo: str):
-    print("Received score request for maleRollNo:", maleRollNo, "and femaleRollNo:", femaleRollNo)
+    logger.info(f"Calculating score between male {maleRollNo} and female {femaleRollNo}")
     if maleRollNo not in store.male_rollno_vectors:
         raise HTTPException(status_code=404, detail="Male not found")
 
