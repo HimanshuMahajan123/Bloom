@@ -9,7 +9,6 @@ const router = Router();
 
 router.post("/submit-answers", verifyjwt, submitAnswersAndGenerateProfile);
 router.get("/home-content", verifyjwt, homePageContent);
-router.get("/my-notifications", verifyjwt, notificationsPanel);
-router.get("/perfect-matches", verifyjwt, findPerfectMatches);
+router.get("/my-notifications", verifyjwt, notificationsPanel);;
 
 export default router;

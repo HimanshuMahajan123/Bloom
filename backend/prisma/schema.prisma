@@ -120,4 +120,5 @@ model Signal {
 
 enum SignalSource {
   PROXIMITY
+  PERFECT_MATCH
 }
