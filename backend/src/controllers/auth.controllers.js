@@ -137,6 +137,8 @@ const getMe = asyncHandler(async (req, res) => {
       id: true,
       verified: true,
       onboardingCompleted: true,
+      username: true,
+      avatarUrl: true,
     },
   });
 
