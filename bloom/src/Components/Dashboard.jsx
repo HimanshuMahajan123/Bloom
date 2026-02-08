@@ -1,7 +1,6 @@
 //@ts-nocheck
-// src/components/Dashboard.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { Bell, X, MapPin } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import multi_heart from "../assets/multi_heart.png";
 import red_heart from "../assets/red_heart.png";
 import physics_balloon from "../assets/physics_balloon.png";
@@ -9,526 +8,222 @@ import { fetchNotifications } from "../api/notifications";
 import { fetchHome } from "../api/fetchHome";
 import { updateUserLocation } from "../api/updateLocation";
 import { checkNearbyUsers } from "../api/checkNearbyUsers";
+import { rightSwipe, leftSwipe } from "../api/Swpie";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-/* ---------- helpers ---------- */
 
+/* ---------- helpers ---------- */
 const truncateWords = (text, limit = 80) => {
   if (!text) return "";
   const words = text.split(" ");
   return words.length <= limit ? text : words.slice(0, limit).join(" ") + "…";
 };
 
-/* ---------- FeedCard (stateless) ---------- */
+/* ---------- FeedCard ---------- */
+const FeedCard = ({ item, onExpand }) => (
+  <div
+    className="paper max-w-xl w-full mt-6 mb-6 px-8 py-6 relative rounded-3xl shadow-lg bg-white/10 animate-slide-up backdrop-blur-sm"
+    style={{
+      backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
+      backgroundSize: "cover, 220px",
+      backgroundRepeat: "no-repeat, repeat",
+    }}
+    onClick={() => onExpand(item)}
+  >
+    <h2 className="text-center text-2xl font-playfair italic text-[#5b2a2a] mb-4">
+      {item.username}
+    </h2>
+    <p className="font-lora italic text-sm text-[#4a2c2a] leading-relaxed">
+      {truncateWords(item.poem, 40)}
+    </p>
+    <p className="mt-4 text-center text-xs italic text-[#8c3037]/60">
+      Tap to open profile
+    </p>
+  </div>
+);
 
-const FeedCard = ({ item, onExpand }) => {
-  return (
-    <div
-      className="
-        paper
-        max-w-xl
-        w-full
-        mt-6
-        mb-6
-        px-8
-        py-6
-        relative
-        rounded-3xl
-        shadow-lg
-        bg-white/10
-        animate-slide-up
-        backdrop-blur-sm
-      "
-      style={{
-        backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
-        backgroundSize: "cover, 220px",
-        backgroundRepeat: "no-repeat, repeat",
-      }}
-      onClick={() => onExpand && onExpand(item)}
-    >
-      <h2 className="text-center text-2xl font-playfair italic text-[#5b2a2a] mb-4">
-        {item.username}
-      </h2>
+/* ---------- Dashboard ---------- */
+export default function Dashboard() {
+  const { user } = useAuth();
 
-      <p className="font-lora italic text-sm text-[#4a2c2a] leading-relaxed">
-        {truncateWords(item.poem || item.text || "", 40)}
-      </p>
-
-      <p className="mt-4 text-center text-xs italic text-[#8c3037]/60">
-        Tap to open profile
-      </p>
-    </div>
-  );
-};
-
-/* ---------- Dashboard page ---------- */
-
-const Dashboard = () => {
   const [feedData, setFeedData] = useState([]);
- const [signals, setSignals] = useState([]);
-const [likes, setLikes] = useState([]);
-const [resonance, setResonance] = useState([]);
+  const [signals, setSignals] = useState([]);
+  const [likes, setLikes] = useState([]);
+  const [resonance, setResonance] = useState([]);
 
-  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
-  const [notifTab, setNotifTab] = useState("signals"); // 'signals' | 'likes' | 'resonance'
   const [expandedProfile, setExpandedProfile] = useState(null);
-  const [loadingNotif, setLoadingNotif] = useState(false);
-  const [loadingFeed, setLoadingFeed] = useState(false);
-  const {user} = useAuth();
+  const [swipeClass, setSwipeClass] = useState("");
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [notifTab, setNotifTab] = useState("signals");
+
   const nearbyCheckIntervalRef = useRef(null);
 
-  // ---------------- LOCATION TRACKING ----------------
-
-  const [userLocation, setUserLocation] = useState({
-    latitude: null,
-    longitude: null,
-    accuracy: null,
-    timestamp: null,
-    error: null,
-  });
-
-  const [locationPermission, setLocationPermission] = useState("prompt"); // 'granted', 'denied', 'prompt'
-
-  const locationUpdateIntervalRef = useRef(null);
-
-  // Get current position (wrapped in Promise)
-  const getCurrentPosition = () => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by this browser."));
-        return;
-      }
-
-      const options = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      };
-
-      navigator.geolocation.getCurrentPosition(resolve, reject, options);
-    });
-  };
-
-  // Handle successful location fetch
-  const handleLocationUpdate = async (position) => {
-    const { latitude, longitude, accuracy } = position.coords;
-
-    const locationData = {
-      latitude,
-      longitude,
-      accuracy,
-      timestamp: new Date().toISOString(),
-      error: null,
-    };
-
-    setUserLocation(locationData);
-
-    // OPTIONAL: send to backend
-    try {
-      await updateUserLocation(latitude, longitude);
-    } catch (err) {
-      console.error("Backend location update failed:", err);
-    }
-  };
-
-  // Handle errors
-  const handleLocationError = (error) => {
-    console.error("Location error:", error);
-
-    let errorMessage = error?.message || "Unknown location error";
-
-    if (error?.code) {
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage = "Location access denied by user";
-          setLocationPermission("denied");
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = "Location information unavailable";
-          break;
-        case error.TIMEOUT:
-          errorMessage = "Location request timed out";
-          break;
-      }
-    }
-
-    setUserLocation((prev) => ({
-      ...prev,
-      error: errorMessage,
-    }));
-  };
-
-  // Start tracking (once + every 60s)
-  const startLocationTracking = async () => {
-    try {
-      if (!navigator.geolocation) {
-        throw new Error("Geolocation is not supported");
-      }
-
-      // First fetch on load
-      const position = await getCurrentPosition();
-      setLocationPermission("granted");
-      await handleLocationUpdate(position);
-
-      // Every 60 seconds
-      locationUpdateIntervalRef.current = setInterval(async () => {
-        try {
-          const pos = await getCurrentPosition();
-          await handleLocationUpdate(pos);
-        } catch (err) {
-          handleLocationError(err);
-        }
-      }, 60000);
-    } catch (err) {
-      handleLocationError(err);
-    }
-  };
-
-  // Stop tracking
-  const stopLocationTracking = () => {
-    if (locationUpdateIntervalRef.current) {
-      clearInterval(locationUpdateIntervalRef.current);
-      locationUpdateIntervalRef.current = null;
-    }
-  };
-
-  // Start on mount, cleanup on unmount
+  /* ---------- LOCATION ---------- */
   useEffect(() => {
-    startLocationTracking();
+    navigator.geolocation?.getCurrentPosition((pos) => {
+      updateUserLocation(pos.coords.latitude, pos.coords.longitude);
+    });
 
     nearbyCheckIntervalRef.current = setInterval(async () => {
-      try {
-        const newSignals = await checkNearbyUsers();
-
-        if (newSignals.length) {
-          setSignals((prev) => {
-            const seen = new Set(prev.map((s) => s.id));
-            const fresh = newSignals.filter((s) => !seen.has(s.id));
-            return [...fresh, ...prev].slice(0, 10); // cap list
-          });
-        }
-      } catch (err) {
-        console.error("Nearby check failed:", err);
-      }
+      const res = await checkNearbyUsers();
+      setSignals(res?.signals || []);
     }, 30000);
 
-
-    return () => {
-      stopLocationTracking();
-
-      if (nearbyCheckIntervalRef.current) {
-        clearInterval(nearbyCheckIntervalRef.current);
-        nearbyCheckIntervalRef.current = null;
-      }
-    };
+    return () => clearInterval(nearbyCheckIntervalRef.current);
   }, []);
 
-  /*-------------End location tracking state & handlers -------------*/
-
+  /* ---------- FEED ---------- */
   useEffect(() => {
-  if (!signals.length) return;
-
-  const timer = setTimeout(() => {
-    setSignals((prev) => prev.slice(0, prev.length - 1));
-  }, 120000); // 2 min lifetime
-
-  return () => clearTimeout(timer);
-}, [signals]);
-
-  /* load home feed on mount */
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoadingFeed(true);
-        const res = await fetchHome();
-        // res expected as ApiResponse: possibly { status, data, message } or similar
-        // We assume fetchHome returns response.data (raw). adapt if structure differs
-        const items = res?.data?.items || res?.items || res?.data || [];
-        if (mounted) setFeedData(items);
-      } catch (err) {
-        console.error("fetchHome error:", err);
-      } finally {
-        setLoadingFeed(false);
-      }
-    })();
-    return () => (mounted = false);
+    fetchHome().then((res) =>
+      setFeedData(res?.data?.items || [])
+    );
   }, []);
 
-  /* open notifications panel -> fetch categorized notifications */
+  /* ---------- NOTIFICATIONS ---------- */
   const openNotifications = async () => {
-  try {
-    setLoadingNotif(true);
     setNotifPanelOpen(true);
-
     const res = await fetchNotifications();
-    const payload = res?.data || res;
-
-    setLikes(payload.likes || []);
-    setResonance(payload.resonance || []);
+    setLikes(res?.data?.likes || []);
+    setResonance(res?.data?.resonance || []);
     setNotifTab("signals");
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoadingNotif(false);
-  }
-};
+  };
 
+  /* ---------- SWIPE ---------- */
+  const handleSwipe = async (direction) => {
+    if (!expandedProfile) return;
 
-  /* open a profile from notification item (payload carries userId, username, poem, avatarUrl) */
-  const openFromNotification = (item) => {
-    // item may contain username/poem — prefer it; else fallback to feedData lookup
-    if (!item) return;
-    if (item.userId && !item.poem) {
-      // try to find in feedData
-      const found = feedData.find(
-        (f) => f.id === item.userId || f.username === item.username,
-      );
-      if (found) {
-        setExpandedProfile(found);
-        setNotifPanelOpen(false);
-        return;
+    setSwipeClass(direction === "right" ? "swipe-right" : "swipe-left");
+
+    setTimeout(async () => {
+      if (direction === "right") {
+        await rightSwipe(expandedProfile.id);
+      } else {
+        await leftSwipe(expandedProfile.id);
       }
-    }
-    // otherwise just open from notification payload
-    setExpandedProfile({
-      id: item.userId || item.id,
-      username: item.username,
-      poem: item.poem,
-      avatarUrl: item.avatarUrl,
-    });
-    setNotifPanelOpen(false);
+
+      setSignals((prev) => prev.filter((s) => s.id !== expandedProfile.id));
+      setExpandedProfile(null);
+      setSwipeClass("");
+    }, 450);
   };
 
   return (
     <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
-      {/* ambient hearts & balloons */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
-        {[...Array(150)].map((_, i) => (
+
+      {/* Top Bar */}
+      <div className="flex justify-between items-center mb-6 relative z-10 px-2">
+        <NavLink to="/profile" className="flex items-center gap-3">
           <img
-            key={`h-${i}`}
-            src={red_heart}
-            className="absolute w-6 opacity-50"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animation: `floatUp ${12 + Math.random() * 12}s linear infinite`,
-            }}
+            src={user?.avatarUrl || "/males/1.png"}
+            className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
           />
-        ))}{" "}
-        {[...Array(76)].map((_, i) => (
-          <img
-            key={`b-${i}`}
-            src={physics_balloon}
-            className="absolute w-16 opacity-40"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animation: `drift ${18 + Math.random() * 18}s linear infinite`,
-            }}
+          <p className="font-playfair italic text-white">{user?.username}</p>
+        </NavLink>
+
+        <button
+          onClick={openNotifications}
+          className="relative p-2.5 rounded-full bg-white/20 backdrop-blur-md"
+        >
+          <Bell size={18} className="text-white" />
+          {signals.length > 0 && (
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" />
+          )}
+        </button>
+      </div>
+
+      {/* Feed */}
+      <div className="flex flex-col items-center relative z-10">
+        {feedData.map((item) => (
+          <FeedCard
+            key={item.username}
+            item={item}
+            onExpand={setExpandedProfile}
           />
         ))}
       </div>
 
-  {/* Top Bar */}
-<div className="flex justify-between items-center mb-6 relative z-10 px-2">
-  {/* Left: User Info */}
-  <div className="flex items-center gap-3 min-w-0">
-  <NavLink to="/profile" className="flex items-center gap-3 min-w-0">
-      <img
-      src={user?.avatarUrl || "/males/1.png"}
-      alt="Profile"
-      className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
-    />
-  </NavLink>
-
-    <div className="flex flex-col leading-tight truncate gap-0">
-      <p className="font-playfair italic text-[#fafafa] truncate">
-        {user?.username}
-      </p>
-      <p className="font-lora text-sm text-[#fafafa]/60">
-          {locationPermission === "denied"
-            ? "location Denied"
-            : userLocation.latitude
-            ? `searching...`
-            : "Fetching location…"}
-      </p>
-    </div>
-  </div>
-
-  {/* Right: Notifications */}
-  <button
-    onClick={openNotifications}
-    className="
-      relative
-      p-2.5
-      rounded-full
-      bg-white/20
-      backdrop-blur-md
-      hover:bg-white/30
-      active:scale-95
-      transition
-      shadow-sm
-    "
-    aria-label="Open Signals"
-  >
-    <Bell size={18} className="text-white" />
-
-    {/* Notification dot */}
-    {signals.length ? <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" /> : null}
-  </button>
-</div>
-
-
-     {/* feed list */}
-<div
-  className="
-    flex flex-col items-center relative z-10
-    animate-slide-up
-  "
->
-  {loadingFeed ? (
-    <div className="py-8"></div>
-  ) : feedData.length === 0 ? (
-    <div className="py-8 text-sm">No profiles yet.</div>
-  ) : (
-    feedData.map((item) => (
-      <FeedCard
-        key={item.id || item.username}
-        item={item}
-        onExpand={setExpandedProfile}
-      />
-    ))
-  )}
-</div>
-
-
-      {/* profile modal (expanded) */}
+      {/* Profile Modal */}
       {expandedProfile && (
-        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center px-6 py-12">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40" />
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setExpandedProfile(null)}
-          />
-          <div
-            className="relative z-10 max-w-lg w-full bg-[#ffaea8] rounded-3xl px-8 py-6 overflow-auto"
+            className={`relative z-10 max-w-lg w-full rounded-3xl px-8 py-6 ${swipeClass}`}
             style={{
-              backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
+              backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85), rgba(255,248,237,0.65)), url(${multi_heart})`,
               backgroundSize: "cover, 220px",
-              backgroundRepeat: "no-repeat, repeat",
             }}
           >
-            <div className="flex justify-between items-start ">
-              <h2 className="text-2xl text-center flex space-center font-playfair italic font-medium text-[#5b2a2a]">
+            <div className="flex justify-between">
+              <h2 className="font-playfair italic text-2xl">
                 {expandedProfile.username}
               </h2>
-              <button onClick={() => setExpandedProfile(null)} className="p-2">
-                <X size={18} />
+              <button onClick={() => setExpandedProfile(null)}>
+                <X />
               </button>
             </div>
 
-            <div className="mt-4 font-lora text-sm text-[#4a2c2a] whitespace-pre-wrap leading-relaxed">
-              {expandedProfile.poem ||
-                expandedProfile.text ||
-                "No profile text available."}
+            <p className="mt-4 font-lora text-sm">
+              {expandedProfile.poem || "No profile text"}
+            </p>
+
+            {/* Swipe Buttons */}
+            <div className="mt-6 flex justify-center gap-6">
+              <button
+                onClick={() => handleSwipe("left")}
+                className="px-6 py-3 rounded-full bg-white/70"
+              >
+                Not my spark
+              </button>
+              <button
+                onClick={() => handleSwipe("right")}
+                className="px-6 py-3 rounded-full bg-[#af323f] text-white"
+              >
+                Feel the spark ❤️
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* notifications panel (tabbed) */}
+      {/* Notifications Panel */}
       {notifPanelOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm px-4 pt-8 pb-6">
-          <div className="w-full max-w-md bg-white/95 rounded-3xl px-4 py-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex gap-2">
+        <div className="fixed inset-0 z-50 flex justify-center bg-black/20 pt-8">
+          <div className="bg-white rounded-3xl w-full max-w-md px-4 py-4">
+           <div className="flex items-start justify-between">
+             <div className="flex gap-2 mb-3">
+              {["signals", "likes", "resonance"].map((t) => (
                 <button
-                  className={`px-3 py-2 rounded-full ${notifTab === "signals" ? "bg-[#f9e8e8]" : "bg-white"}`}
-                  onClick={() => setNotifTab("signals")}
+                  key={t}
+                  className={`px-3 py-2 rounded-full ${
+                    notifTab === t ? "bg-[#f9e8e8]" : ""
+                  }`}
+                  onClick={() => setNotifTab(t)}
                 >
-                  Signals
+                  {t}
                 </button>
-                <button
-                  className={`px-3 py-2 rounded-full ${notifTab === "likes" ? "bg-[#f9e8e8]" : "bg-white"}`}
-                  onClick={() => setNotifTab("likes")}
-                >
-                  Sparks
-                </button>
-                <button
-                  className={`px-3 py-2 rounded-full ${notifTab === "resonance" ? "bg-[#f9e8e8]" : "bg-white"}`}
-                  onClick={() => setNotifTab("resonance")}
-                >
-                  Blooms
-                </button>
-              </div>
-              <button onClick={() => setNotifPanelOpen(false)}>
-                <X size={18} />
-              </button>
+              ))}
             </div>
+            <div onClick={()=>setNotifPanelOpen(false)}>
+              <X></X>
+            </div>
+           </div>
 
-            <div className="min-h-[120px] max-h-[60vh] overflow-auto space-y-3">
-              {loadingNotif ? (
-                <div>Loading…</div>
-              ) : notifTab === "signals" ? (
-                signals.length ? (
-                  signals.map((s, idx) => (
-                    <button
-                      key={idx}
-                      className="w-full text-left px-3 py-3 rounded-xl bg-[#fff4f4]"
-                      onClick={() => openFromNotification(s)}
-                    >
-                      <div className="font-playfair italic">
-                        {s.username || "Someone nearby"}
-                      </div>
-                      <div className="text-xs font-lora mt-1 text-[#5b2a2a]/80">
-                        {s.hint || "Nearby — check location"}
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-sm text-center py-6">
-                    No signals nearby right now.
-                  </div>
-                )
-              ) : notifTab === "likes" ? (
-                likes.length ? (
-                  likes.map((l) => (
-                    <button
-                      key={l.userId}
-                      className="w-full text-left px-3 py-3 rounded-xl bg-[#fff4f4]"
-                      onClick={() => openFromNotification(l)}
-                    >
-                      <div className="font-playfair italic">{l.username}</div>
-                      <div className="text-xs font-lora mt-1 text-[#5b2a2a]/80">
-                        Sent you a spark
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-sm text-center py-6">
-                    No pending Sparks.
-                  </div>
-                )
-              ) : resonance.length ? (
-                resonance.map((r) => (
-                  <button
-                    key={r.userId}
-                    className="w-full text-left px-3 py-3 rounded-xl bg-[#fffaf0]"
-                    onClick={() => openFromNotification(r)}
-                  >
-                    <div className="font-playfair italic">{r.username}</div>
-                    <div className="text-xs font-lora mt-1 text-[#5b2a2a]/80">
-                      It's a Bloom — reveal
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="text-sm text-center py-6">No Blooms yet.</div>
-              )}
-            </div>
+            {(notifTab === "signals" ? signals : notifTab === "likes" ? likes : resonance)
+              .map((s) => (
+                <button
+                  key={s.id}
+                  className="w-full text-left px-3 py-3 rounded-xl bg-[#fff4f4]"
+                  onClick={() => {
+                    setExpandedProfile({ ...s, isSignal: true });
+                    setNotifPanelOpen(false);
+                  }}
+                >
+                  {s.username}
+                </button>
+              ))}
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default Dashboard;
+}

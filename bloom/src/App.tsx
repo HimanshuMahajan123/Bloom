@@ -22,7 +22,8 @@ const RootRoute = () => {
 
   if (loading) return null;
 
-  return user ? <Navigate to="/login/me" replace /> : <Home />;
+  return user ? <Navigate to="/login/me" replace /> :               <Dashboard />
+;
 };
 
 

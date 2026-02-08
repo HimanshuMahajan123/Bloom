@@ -8,18 +8,13 @@ export const rightSwipe = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { otherUserId } = req.body;
 
-  if (!otherUserId || userId === otherUserId) {
+  if (!otherUserId || otherUserId === userId) {
     throw new ApiError(400, "Invalid target user");
   }
 
-  // ensure target exists + eligible
   const otherUser = await prisma.user.findUnique({
     where: { id: otherUserId },
-    select: {
-      id: true,
-      verified: true,
-      onboardingCompleted: true,
-    },
+    select: { verified: true, onboardingCompleted: true },
   });
 
   if (!otherUser || !otherUser.verified || !otherUser.onboardingCompleted) {
@@ -27,7 +22,15 @@ export const rightSwipe = asyncHandler(async (req, res) => {
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // fetch existing interaction if any
+    // 1️⃣ Remove pending signal
+    await tx.signal.deleteMany({
+      where: {
+        fromUserId: otherUserId,
+        toUserId: userId,
+      },
+    });
+
+    // 2️⃣ Check existing interaction
     const existing = await tx.userInteraction.findUnique({
       where: {
         fromUserId_toUserId: {
@@ -37,29 +40,11 @@ export const rightSwipe = asyncHandler(async (req, res) => {
       },
     });
 
-    // if already rejected → locked forever
     if (existing?.state === "REJECTED") {
       return { matched: false, type: "BLOCKED" };
     }
 
-    // already liked → idempotent
-    if (existing?.state === "LIKED") {
-      const reciprocal = await tx.userInteraction.findUnique({
-        where: {
-          fromUserId_toUserId: {
-            fromUserId: otherUserId,
-            toUserId: userId,
-          },
-        },
-      });
-
-      return {
-        matched: reciprocal?.state === "LIKED",
-        type: reciprocal?.state === "LIKED" ? "MATCH" : "SPARK",
-      };
-    }
-
-    // create or update to LIKE
+    // 3️⃣ Record LIKE
     await tx.userInteraction.upsert({
       where: {
         fromUserId_toUserId: {
@@ -75,7 +60,7 @@ export const rightSwipe = asyncHandler(async (req, res) => {
       },
     });
 
-    // re-check reciprocal after write
+    // 4️⃣ Check reciprocal
     const reciprocal = await tx.userInteraction.findUnique({
       where: {
         fromUserId_toUserId: {
@@ -92,49 +77,34 @@ export const rightSwipe = asyncHandler(async (req, res) => {
     return { matched: false, type: "SPARK" };
   });
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        result,
-        result.type === "MATCH" ? "It's a match" : "Spark sent",
-      ),
-    );
+  return res.json(
+    new ApiResponse(
+      200,
+      result,
+      result.type === "MATCH" ? "It's a match" : "Spark sent",
+    ),
+  );
 });
 
 /* ---------------- LEFT SWIPE ---------------- */
-
 export const leftSwipe = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { otherUserId } = req.body;
 
-  if (!otherUserId || userId === otherUserId) {
+  if (!otherUserId || otherUserId === userId) {
     throw new ApiError(400, "Invalid target user");
   }
 
-  const otherUser = await prisma.user.findUnique({
-    where: { id: otherUserId },
-    select: { id: true },
-  });
-
-  if (!otherUser) {
-    throw new ApiError(404, "User not found");
-  }
-
   await prisma.$transaction(async (tx) => {
-    const existing = await tx.userInteraction.findUnique({
+    // remove signal
+    await tx.signal.deleteMany({
       where: {
-        fromUserId_toUserId: {
-          fromUserId: userId,
-          toUserId: otherUserId,
-        },
+        fromUserId: otherUserId,
+        toUserId: userId,
       },
     });
 
-    // already rejected → no-op
-    if (existing?.state === "REJECTED") return;
-
+    // record rejection
     await tx.userInteraction.upsert({
       where: {
         fromUserId_toUserId: {
@@ -151,7 +121,5 @@ export const leftSwipe = asyncHandler(async (req, res) => {
     });
   });
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Left swipe recorded"));
-});
+  return res.json(new ApiResponse(200, null, "Left swipe recorded"));
+};

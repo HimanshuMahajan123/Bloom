@@ -27,9 +27,13 @@ model User {
   emailVerification    EmailVerification?
   onboardingSubmission OnboardingSubmission?
 
-  // relations
+  // interactions
   sentInteractions     UserInteraction[] @relation("FromUser")
   receivedInteractions UserInteraction[] @relation("ToUser")
+
+  // signals
+  sentSignals          Signal[] @relation("SignalFromUser")
+  receivedSignals      Signal[] @relation("SignalToUser")
 
   @@index([createdAt])
 }
@@ -91,7 +95,29 @@ model UserInteraction {
 }
 
 enum InteractionState {
-  SIGNAL
   LIKED
   REJECTED
+}
+
+model Signal {
+  id          String   @id @default(uuid())
+
+  fromUserId  String
+  toUserId    String
+
+  score       Float
+  source      SignalSource @default(PROXIMITY)
+
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  fromUser    User @relation("SignalFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User @relation("SignalToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, expiresAt])
+}
+
+enum SignalSource {
+  PROXIMITY
 }

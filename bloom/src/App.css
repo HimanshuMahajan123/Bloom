@@ -96,3 +96,23 @@
 .animate-slide-up {
   animation: slide-up 0.6s ease-out both;
 }
+
+@keyframes swipe-left {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-120%); opacity: 0; }
+}
+
+@keyframes swipe-right {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+.swipe-left {
+  animation: swipe-left 0.45s ease forwards;
+  background: rgba(255, 80, 80, 0.25);
+}
+
+.swipe-right {
+  animation: swipe-right 0.45s ease forwards;
+  background: rgba(80, 200, 120, 0.25);
+}

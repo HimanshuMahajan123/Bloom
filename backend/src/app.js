@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import locationRoutes from "./routes/location.routes.js";
+import matchRoutes from "./routes/match.routes.js";
 const app = express();
 
 app.use(express.json());
@@ -25,5 +26,7 @@ app.use("/api/health", (req, res) => {
 app.use("/api/location", locationRoutes);
 
 app.use("/api/profile", profileRoutes);
+
+app.use('/api/match', matchRoutes);
 
 export default app;

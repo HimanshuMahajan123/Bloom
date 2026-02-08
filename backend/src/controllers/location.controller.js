@@ -8,7 +8,6 @@ import axios from "axios";
 
 import { updateUserLocation, getNearbyUsers } from "../store/locationStore.js";
 
-import { hasSeenSignal, markSignalSeen } from "../store/signalCache.js";
 
 /* ---------------- UPDATE LOCATION ---------------- */
 
@@ -32,44 +31,85 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const myGender = req.user.gender;
   const myRoll = req.user.rollNumber;
+  const now = new Date();
 
-  /* 1. Nearby users (memory-only) */
+  /* 1️⃣ Existing active signals */
+  const existingSignals = await prisma.signal.findMany({
+    where: {
+      toUserId: userId,
+      expiresAt: { gt: now },
+    },
+    include: {
+      fromUser: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existingSignals.length >= MAX_SIGNALS) {
+    return res.json(
+      new ApiResponse(200, {
+        signals: existingSignals.map(s => ({
+          id: s.fromUser.id,
+          username: s.fromUser.username,
+          avatarUrl: s.fromUser.avatarUrl,
+          score: s.score,
+        })),
+      }),
+    );
+  }
+
+  /* 2️⃣ Nearby users */
   const nearby = getNearbyUsers(userId, 50);
   if (!nearby.length) {
     return res.json(new ApiResponse(200, { signals: [] }));
   }
 
-  /* 2. Remove already-delivered signals */
-  const unseen = nearby.filter(
-    (uid) => uid !== userId && !hasSeenSignal(userId, uid),
-  );
-  if (!unseen.length) {
-    return res.json(new ApiResponse(200, { signals: [] }));
-  }
+  const alreadySignaled = new Set(existingSignals.map(s => s.fromUserId));
 
-  /* 3. Remove users with ANY past interaction */
+  /* 3️⃣ Remove users with interactions */
   const interactions = await prisma.userInteraction.findMany({
     where: {
       OR: [
-        { fromUserId: userId, toUserId: { in: unseen } },
-        { toUserId: userId, fromUserId: { in: unseen } },
+        { fromUserId: userId, toUserId: { in: nearby } },
+        { toUserId: userId, fromUserId: { in: nearby } },
       ],
     },
     select: { fromUserId: true, toUserId: true },
   });
 
   const blocked = new Set();
-  interactions.forEach((i) => {
+  interactions.forEach(i => {
     blocked.add(i.fromUserId);
     blocked.add(i.toUserId);
   });
 
-  const candidates = unseen.filter((uid) => !blocked.has(uid));
+  const candidates = nearby.filter(
+    uid =>
+      uid !== userId &&
+      !alreadySignaled.has(uid) &&
+      !blocked.has(uid),
+  );
+
   if (!candidates.length) {
-    return res.json(new ApiResponse(200, { signals: [] }));
+    return res.json(
+      new ApiResponse(200, {
+        signals: existingSignals.map(s => ({
+          id: s.fromUser.id,
+          username: s.fromUser.username,
+          avatarUrl: s.fromUser.avatarUrl,
+          score: s.score,
+        })),
+      }),
+    );
   }
 
-  /* 4. Fetch opposite-gender profiles */
+  /* 4️⃣ Fetch profiles */
   const users = await prisma.user.findMany({
     where: {
       id: { in: candidates },
@@ -83,59 +123,76 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     },
   });
 
-  if (!users.length) {
-    return res.json(new ApiResponse(200, { signals: [] }));
-  }
-
-  /* 5. Score + threshold filter */
-  const qualified = [];
-
+  /* 5️⃣ Score via FAISS */
   const scored = await Promise.allSettled(
-    users.map((u) => {
+    users.map(u => {
       const maleRoll = myGender === "MALE" ? myRoll : u.rollNumber;
       const femaleRoll = myGender === "FEMALE" ? myRoll : u.rollNumber;
 
       return axios
         .get(process.env.FAISS_SERVICE_URL + "/score", {
-          params: {
-            maleRollNo: maleRoll,
-            femaleRollNo: femaleRoll,
-          },
+          params: { maleRollNo: maleRoll, femaleRollNo: femaleRoll },
           timeout: 1500,
         })
-        .then((r) => ({
+        .then(r => ({
           user: u,
           score: Number(r.data?.score || 0),
         }));
     }),
   );
-  console.log("FAISS scoring results:", scored);
+
+  const newSignals = [];
 
   for (const result of scored) {
     if (
       result.status === "fulfilled" &&
       result.value.score >= CENTRAL_THRESHOLD
     ) {
-      qualified.push({
-        id: result.value.user.id,
-        username: result.value.user.username,
-        avatarUrl: result.value.user.avatarUrl,
-        score: result.value.score,
+      const { user, score } = result.value;
+
+      await prisma.signal.upsert({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: user.id,
+            toUserId: userId,
+          },
+        },
+        update: {},
+        create: {
+          fromUserId: user.id,
+          toUserId: userId,
+          score,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+        },
       });
 
-      markSignalSeen(userId, result.value.user.id);
+      newSignals.push({
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        score,
+      });
 
-      if (qualified.length >= MAX_SIGNALS) break;
-    }
-   
-
-    if (result.status === "rejected") {
-      console.error("FAISS score failed:", result.reason?.message);
+      if (existingSignals.length + newSignals.length >= MAX_SIGNALS) break;
     }
   }
 
-  return res.json(new ApiResponse(200, { signals: qualified }));
+  return res.json(
+    new ApiResponse(200, {
+      signals: [
+        ...existingSignals.map(s => ({
+          id: s.fromUser.id,
+          username: s.fromUser.username,
+          avatarUrl: s.fromUser.avatarUrl,
+          score: s.score,
+          poem: s.fromUser.poem,
+        })),
+        ...newSignals,
+      ],
+    }),
+  );
 });
+
 
 export const getSignalScore = asyncHandler(async (req, res) => {
   const userId = req.user.id;
