@@ -268,7 +268,7 @@ const notificationsPanel = asyncHandler(async (req, res) => {
   if (!incomingLikes.length) {
     return res
       .status(200)
-      .json(new ApiResponse(200, {  likes: [], resonance: [] }));
+      .json(new ApiResponse(200, { likes: [], resonance: [] }));
   }
 
   /* ---------------- 2️⃣ Bulk Reciprocal Lookup ---------------- */
@@ -342,7 +342,7 @@ const notificationsPanel = asyncHandler(async (req, res) => {
     );
 });
 
-export const findPerfectMatches = asyncHandler(async (req, res) => {
+const findPerfectMatches = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const myGender = req.user.gender;
   const myRoll = req.user.rollNumber;
@@ -404,21 +404,49 @@ export const findPerfectMatches = asyncHandler(async (req, res) => {
     return res.json(new ApiResponse(200, { matches: [] }));
   }
 
+  const interactionIds = interactionFiltered.map((u) => u.id);
+
   /* --------------------------------------------------
     Remove users with existing unexpired signals
   -------------------------------------------------- */
-  const existingSignals = await prisma.signal.findMany({
+  const activeSignals = await prisma.signal.findMany({
     where: {
-      fromUserId: userId,
-      toUserId: { in: interactionFiltered.map((u) => u.id) },
       expiresAt: { gt: new Date() },
+      OR: [
+        {
+          fromUserId: userId,
+          toUserId: { in: interactionIds },
+        },
+        {
+          toUserId: userId,
+          fromUserId: { in: interactionIds },
+        },
+      ],
     },
-    select: { toUserId: true },
+    select: {
+      fromUserId: true,
+      toUserId: true,
+    },
   });
 
-  const signaled = new Set(existingSignals.map((s) => s.toUserId));
+  // count directions per pair
+  const signalCount = new Map();
 
-  const signalFiltered = interactionFiltered.filter((u) => !signaled.has(u.id));
+  for (const s of activeSignals) {
+    const other = s.fromUserId === userId ? s.toUserId : s.fromUserId;
+
+    signalCount.set(other, (signalCount.get(other) || 0) + 1);
+  }
+
+  // exclude only if both directions exist
+  const fullySignaled = new Set();
+  for (const [otherId, count] of signalCount.entries()) {
+    if (count >= 2) fullySignaled.add(otherId);
+  }
+
+  const signalFiltered = interactionFiltered.filter(
+    (u) => !fullySignaled.has(u.id),
+  );
 
   if (!signalFiltered.length) {
     return res.json(new ApiResponse(200, { matches: [] }));
