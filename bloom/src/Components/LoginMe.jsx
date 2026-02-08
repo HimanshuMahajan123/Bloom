@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
-
 const LoginMe = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -19,7 +18,8 @@ const LoginMe = () => {
     }
   }, [user, loading]);
 
-  return <p>Igniting your spark… ✨</p>;
+  return <p className="flex justify-center items-center">
+  </p>;
 };
 
 export default LoginMe;
