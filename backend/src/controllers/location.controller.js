@@ -51,26 +51,25 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     take: MAX_SIGNALS,
   });
 
-  /* If inbox already full → return */
-  if (existingSignals.length >= MAX_SIGNALS) {
-    return res.json(
-      new ApiResponse(200, {
-        signals: existingSignals.map(s => ({
-          id: s.fromUser.id,
-          username: s.fromUser.username,
-          avatarUrl: s.fromUser.avatarUrl,
-          poem: s.fromUser.poem,
-          score: s.score,
-        })),
-      })
-    );
-  }
+
+
 
   /* 2️⃣ Nearby users */
   const nearby = getNearbyUsers(userId, 50);
-  if (!nearby.length) {
-    return res.json(new ApiResponse(200, { signals: [] }));
-  }
+ if (!nearby.length) {
+  return res.json(
+    new ApiResponse(200, {
+      signals: existingSignals.map(s => ({
+        id: s.fromUser.id,
+        username: s.fromUser.username,
+        avatarUrl: s.fromUser.avatarUrl,
+        poem: s.fromUser.poem,
+        score: s.score,
+      })),
+    })
+  );
+}
+
 
   /* 3️⃣ Block users with any interaction */
   const interactions = await prisma.userInteraction.findMany({
@@ -97,9 +96,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   const candidates = nearby.filter(
     uid =>
       uid !== userId &&
-      !blocked.has(uid) &&
-      !alreadySignaled.has(uid)
-  );
+      !blocked.has(uid)   );
 
   if (!candidates.length) {
     return res.json(
