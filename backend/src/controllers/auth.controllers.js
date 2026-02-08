@@ -149,4 +149,14 @@ const getMe = asyncHandler(async (req, res) => {
   res.status(200).json(user);
 });
 
-export { loginUser, verifyEmail, getMe };
+const logoutUser = asyncHandler(async (req, res) => {
+  res
+    .clearCookie("token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+    })
+    .json(new ApiResponse(200, "Logged out successfully"));
+});
+
+export { loginUser, verifyEmail, getMe, logoutUser };
