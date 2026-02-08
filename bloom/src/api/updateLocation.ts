@@ -8,7 +8,6 @@ export const updateUserLocation = async (
     const response = await api.post("/location/update", {
       latitude,
       longitude,
-      timestamp: new Date().toISOString(),
     });
 
     return response.data;
