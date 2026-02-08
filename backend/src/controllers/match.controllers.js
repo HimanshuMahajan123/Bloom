@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 
+/* ---------------- RIGHT SWIPE ---------------- */
 export const rightSwipe = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { otherUserId } = req.body;
@@ -11,56 +12,98 @@ export const rightSwipe = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid target user");
   }
 
-  /* 1. Record / update my like */
-  await prisma.userInteraction.upsert({
-    where: {
-      fromUserId_toUserId: {
-        fromUserId: userId,
-        toUserId: otherUserId,
-      },
-    },
-    update: {
-      state: "LIKED",
-    },
-    create: {
-      fromUserId: userId,
-      toUserId: otherUserId,
-      state: "LIKED",
+  // ensure target exists + eligible
+  const otherUser = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: {
+      id: true,
+      verified: true,
+      onboardingCompleted: true,
     },
   });
 
-  /* 2. Check reciprocal */
-  const reciprocal = await prisma.userInteraction.findUnique({
-    where: {
-      fromUserId_toUserId: {
-        fromUserId: otherUserId,
-        toUserId: userId,
-      },
-    },
-  });
-
-  if (reciprocal?.state === "LIKED") {
-    // ✅ MATCH
-    // emit "match" notification to BOTH users
-    // (socket / push / polling-friendly)
-
-    return res.status(200).json(
-      new ApiResponse(200, {
-        matched: true,
-        type: "MATCH",
-      }, "It's a match")
-    );
+  if (!otherUser || !otherUser.verified || !otherUser.onboardingCompleted) {
+    throw new ApiError(404, "User not available");
   }
 
-  // 💫 ONE-SIDED LIKE → spark notification to other user
-  return res.status(200).json(
-    new ApiResponse(200, {
-      matched: false,
-      type: "SPARK",
-    }, "Spark sent")
-  );
+  const result = await prisma.$transaction(async (tx) => {
+    // fetch existing interaction if any
+    const existing = await tx.userInteraction.findUnique({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: userId,
+          toUserId: otherUserId,
+        },
+      },
+    });
+
+    // if already rejected → locked forever
+    if (existing?.state === "REJECTED") {
+      return { matched: false, type: "BLOCKED" };
+    }
+
+    // already liked → idempotent
+    if (existing?.state === "LIKED") {
+      const reciprocal = await tx.userInteraction.findUnique({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: otherUserId,
+            toUserId: userId,
+          },
+        },
+      });
+
+      return {
+        matched: reciprocal?.state === "LIKED",
+        type: reciprocal?.state === "LIKED" ? "MATCH" : "SPARK",
+      };
+    }
+
+    // create or update to LIKE
+    await tx.userInteraction.upsert({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: userId,
+          toUserId: otherUserId,
+        },
+      },
+      update: { state: "LIKED" },
+      create: {
+        fromUserId: userId,
+        toUserId: otherUserId,
+        state: "LIKED",
+      },
+    });
+
+    // re-check reciprocal after write
+    const reciprocal = await tx.userInteraction.findUnique({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: otherUserId,
+          toUserId: userId,
+        },
+      },
+    });
+
+    if (reciprocal?.state === "LIKED") {
+      return { matched: true, type: "MATCH" };
+    }
+
+    return { matched: false, type: "SPARK" };
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        result,
+        result.type === "MATCH" ? "It's a match" : "Spark sent",
+      ),
+    );
 });
 
+/* ---------------- LEFT SWIPE ---------------- */
 
 export const leftSwipe = asyncHandler(async (req, res) => {
   const userId = req.user.id;
@@ -70,24 +113,45 @@ export const leftSwipe = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid target user");
   }
 
-  await prisma.userInteraction.upsert({
-    where: {
-      fromUserId_toUserId: {
-        fromUserId: userId,
-        toUserId: otherUserId,
-      },
-    },
-    update: {
-      state: "REJECTED",
-    },
-    create: {
-      fromUserId: userId,
-      toUserId: otherUserId,
-      state: "REJECTED",
-    },
+  const otherUser = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: { id: true },
   });
 
-  return res.status(200).json(
-    new ApiResponse(200, null, "Left swipe recorded")
-  );
+  if (!otherUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.userInteraction.findUnique({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: userId,
+          toUserId: otherUserId,
+        },
+      },
+    });
+
+    // already rejected → no-op
+    if (existing?.state === "REJECTED") return;
+
+    await tx.userInteraction.upsert({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: userId,
+          toUserId: otherUserId,
+        },
+      },
+      update: { state: "REJECTED" },
+      create: {
+        fromUserId: userId,
+        toUserId: otherUserId,
+        state: "REJECTED",
+      },
+    });
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Left swipe recorded"));
 });

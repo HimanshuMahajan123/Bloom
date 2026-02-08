@@ -10,13 +10,13 @@ const groq = new Groq({
 });
 
 const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
-  const  {answers}  = req.body;
+  const { answers } = req.body;
   const userId = req.user.id;
   const rollNumber = req.user.rollNumber;
   console.log("Received answers:", answers);
-  console.log(answers.length)
+  console.log(answers.length);
   /* ---------------- VALIDATION ---------------- */
-  
+
   if (!Array.isArray(answers) || answers.length !== 10) {
     throw new ApiError(400, "Exactly 10 answers are required");
   }
@@ -33,7 +33,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
 
   /* ---------------- NORMALIZE ---------------- */
 
-  const normalizedAnswers = answers.map(a => a.answer.trim());
+  const normalizedAnswers = answers.map((a) => a.answer.trim());
 
   const gender = normalizedAnswers[4].toUpperCase();
   if (gender !== "MALE" && gender !== "FEMALE") {
@@ -56,7 +56,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
     create: {
       userId,
       rollNumber,
-      answers: {answers: normalizedAnswers},
+      answers: { answers: normalizedAnswers },
     },
   });
 
@@ -64,13 +64,15 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   const data = {
     rollno: rollNumber,
     responses: normalizedAnswers,
-  }
+  };
   console.log("Sending data to external service:", data);
-  axios.post("https://bloom-nsrj.onrender.com/user/register", data, {
-    timeout: 5000,
-  }).catch(err => {
-    console.error("External service error:", err.message);
-  });
+  axios
+    .post("https://bloom-nsrj.onrender.com/user/register", data, {
+      timeout: 5000,
+    })
+    .catch((err) => {
+      console.error("External service error:", err.message);
+    });
 
   /* ---------------- PROFILE GENERATION ---------------- */
 
@@ -107,7 +109,7 @@ ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
   }
 
   /* ---------------- USERNAME + AVATAR ---------------- */
-  
+
   const [username] = await prisma.$transaction(async (tx) => {
     const usernames = await tx.usernamePool.findMany({
       where: { gender, taken: false },
@@ -158,7 +160,6 @@ ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
     }),
   );
 });
-
 
 const homePageContent = asyncHandler(async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 10, 30);
@@ -238,58 +239,107 @@ const homePageContent = asyncHandler(async (req, res) => {
   );
 });
 
-
- const notificationsPanel = asyncHandler(async (req, res) => {
+export const notificationsPanel = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  // fetch incoming interactions (signals, likes, rejected) — recent first
-  const incoming = await prisma.userInteraction.findMany({
-    where: { toUserId: userId },
+  /* ---------------- 1️⃣ Incoming Likes ---------------- */
+
+  const incomingLikes = await prisma.userInteraction.findMany({
+    where: {
+      toUserId: userId,
+      state: "LIKED",
+    },
     include: {
-      fromUser: { select: { id: true, username: true, avatarUrl: true, poem: true } },
+      fromUser: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          poem: true,
+          verified: true,
+          onboardingCompleted: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
 
+  if (!incomingLikes.length) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { signals: [], likes: [], resonance: [] }));
+  }
+
+  /* ---------------- 2️⃣ Bulk Reciprocal Lookup ---------------- */
+
+  const fromIds = incomingLikes.map((i) => i.fromUserId);
+
+  const reciprocals = await prisma.userInteraction.findMany({
+    where: {
+      fromUserId: userId,
+      toUserId: { in: fromIds },
+      state: "LIKED",
+    },
+  });
+
+  const reciprocalMap = new Map();
+  reciprocals.forEach((r) => {
+    reciprocalMap.set(r.toUserId, r);
+  });
+
+  /* ---------------- 3️⃣ Classify ---------------- */
 
   const likes = [];
   const resonance = [];
 
-  // classify each incoming LIKED into resonance or likes (mutual)
-  for (const i of incoming) {
-    if (i.state !== "LIKED") continue;
-    // reciprocal lookup via unique composite (fromUserId_toUserId)
-    const reciprocal = await prisma.userInteraction.findUnique({
-      where: { fromUserId_toUserId: { fromUserId: userId, toUserId: i.fromUserId } },
-    });
-    if (reciprocal && reciprocal.state === "LIKED") {
+  for (const i of incomingLikes) {
+    const u = i.fromUser;
+
+    if (!u || !u.verified || !u.onboardingCompleted) continue;
+
+    const reciprocal = reciprocalMap.get(i.fromUserId);
+
+    if (reciprocal) {
       resonance.push({
-        userId: i.fromUser.id,
-        username: i.fromUser.username,
-        avatarUrl: i.fromUser.avatarUrl,
-        poem: i.fromUser.poem,
-        matchedAt: i.updatedAt,
+        userId: u.id,
+        username: u.username,
+        avatarUrl: u.avatarUrl,
+        poem: u.poem,
+        matchedAt: new Date(
+          Math.max(
+            new Date(i.updatedAt).getTime(),
+            new Date(reciprocal.updatedAt).getTime(),
+          ),
+        ),
       });
     } else {
       likes.push({
-        userId: i.fromUser.id,
-        username: i.fromUser.username,
-        avatarUrl: i.fromUser.avatarUrl,
-        poem: i.fromUser.poem,
+        userId: u.id,
+        username: u.username,
+        avatarUrl: u.avatarUrl,
+        poem: u.poem,
         receivedAt: i.createdAt,
       });
     }
   }
 
-  // SIGNALS: ephemeral; populated by your location engine (in-memory)
-  const signals = []; // TODO: call location service / memory map
+  /* ---------------- 4️⃣ Signals ----------------
+     Live signals should be fetched from /signal/check.
+     Keep realtime + persistent logic separate.
+  */
 
-  return res.status(200).json(
-    new ApiResponse(200, { signals, likes, resonance }, "Signals fetched successfully")
-  );
+  const signals = [];
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { signals, likes, resonance },
+        "Notifications fetched successfully",
+      ),
+    );
 });
-
-
 
 export { submitAnswersAndGenerateProfile, homePageContent, notificationsPanel };
