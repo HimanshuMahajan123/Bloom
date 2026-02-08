@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { rightSwipe ,leftSwipe } from "../controllers/match.controllers";
-import { verifyjwt } from "../middlewares/auth.middlewares";
+import { rightSwipe ,leftSwipe } from "../controllers/match.controllers.js";
+import { verifyjwt } from "../middlewares/auth.middlewares.js";
 const router = Router();
 
 router.post("/right-swipe", verifyjwt, rightSwipe);

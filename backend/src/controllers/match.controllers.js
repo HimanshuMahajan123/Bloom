@@ -1,8 +1,7 @@
-import { prisma } from "../prismaClient.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
-
+import prisma from "../db/prisma.js";
 /* ---------------- RIGHT SWIPE ---------------- */
 export const rightSwipe = asyncHandler(async (req, res) => {
   const userId = req.user.id;
@@ -87,7 +86,8 @@ export const rightSwipe = asyncHandler(async (req, res) => {
 });
 
 /* ---------------- LEFT SWIPE ---------------- */
-export const leftSwipe = asyncHandler(async (req, res) => {
+export const leftSwipe = asyncHandler
+(async (req, res) => {
   const userId = req.user.id;
   const { otherUserId } = req.body;
 
@@ -122,4 +122,5 @@ export const leftSwipe = asyncHandler(async (req, res) => {
   });
 
   return res.json(new ApiResponse(200, null, "Left swipe recorded"));
-};
+})  ;
+
