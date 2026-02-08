@@ -67,7 +67,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   };
   console.log("Sending data to external service:", data);
   axios
-    .post("https://bloom-nsrj.onrender.com/user/register", data, {
+    .post(process.env.FAISS_SERVICE_URL, data, {
       timeout: 5000,
     })
     .catch((err) => {
