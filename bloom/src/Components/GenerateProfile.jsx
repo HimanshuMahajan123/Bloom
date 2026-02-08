@@ -140,10 +140,7 @@ const payload = {
 
   return (
     <div className="min-h-screen  bg-gradient-to-b
-        from-[#923b42]
-        from-[1%]      
-                        via-[#f0c9c3]
-        to-[#dd908c] flex items-center justify-center px-6">
+       from-[#700912] via-[#c4505a] to-[#dd908c] flex items-center justify-center px-6">
       {!revealed ? (
         /* QUESTION FLOW */
         <div className="max-w-md w-full text-center transition-all duration-700">

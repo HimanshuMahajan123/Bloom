@@ -36,6 +36,7 @@ const FeedCard = ({ item, onExpand }) => {
         rounded-3xl
         shadow-lg
         bg-white/10
+        animate-slide-up
         backdrop-blur-sm
       "
       style={{
@@ -64,11 +65,10 @@ const FeedCard = ({ item, onExpand }) => {
 
 const Dashboard = () => {
   const [feedData, setFeedData] = useState([]);
-  const [notificationsData, setNotificationsData] = useState({
-    signals: [],
-    likes: [],
-    resonance: [],
-  });
+ const [signals, setSignals] = useState([]);
+const [likes, setLikes] = useState([]);
+const [resonance, setResonance] = useState([]);
+
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [notifTab, setNotifTab] = useState("signals"); // 'signals' | 'likes' | 'resonance'
   const [expandedProfile, setExpandedProfile] = useState(null);
@@ -196,15 +196,22 @@ const Dashboard = () => {
   useEffect(() => {
     startLocationTracking();
 
-    // 🔁 every 30s ask backend to scan surroundings
     nearbyCheckIntervalRef.current = setInterval(async () => {
       try {
-        console.log("Checking nearby users...");
-        await checkNearbyUsers();
+        const newSignals = await checkNearbyUsers();
+
+        if (newSignals.length) {
+          setSignals((prev) => {
+            const seen = new Set(prev.map((s) => s.id));
+            const fresh = newSignals.filter((s) => !seen.has(s.id));
+            return [...fresh, ...prev].slice(0, 10); // cap list
+          });
+        }
       } catch (err) {
         console.error("Nearby check failed:", err);
       }
     }, 30000);
+
 
     return () => {
       stopLocationTracking();
@@ -217,6 +224,16 @@ const Dashboard = () => {
   }, []);
 
   /*-------------End location tracking state & handlers -------------*/
+
+  useEffect(() => {
+  if (!signals.length) return;
+
+  const timer = setTimeout(() => {
+    setSignals((prev) => prev.slice(0, prev.length - 1));
+  }, 120000); // 2 min lifetime
+
+  return () => clearTimeout(timer);
+}, [signals]);
 
   /* load home feed on mount */
   useEffect(() => {
@@ -240,23 +257,23 @@ const Dashboard = () => {
 
   /* open notifications panel -> fetch categorized notifications */
   const openNotifications = async () => {
-    try {
-      setLoadingNotif(true);
-      setNotifPanelOpen(true);
-      const res = await fetchNotifications();
-      // server returns: { data: { signals, likes, resonance }, ... } depending on ApiResponse wrapper
-      const payload = res?.data || res; // adapt to shape
-      const signals = payload?.signals || [];
-      const likes = payload?.likes || [];
-      const resonance = payload?.resonance || [];
-      setNotificationsData({ signals, likes, resonance });
-      setNotifTab("signals");
-    } catch (err) {
-      console.error("fetchNotifications error:", err);
-    } finally {
-      setLoadingNotif(false);
-    }
-  };
+  try {
+    setLoadingNotif(true);
+    setNotifPanelOpen(true);
+
+    const res = await fetchNotifications();
+    const payload = res?.data || res;
+
+    setLikes(payload.likes || []);
+    setResonance(payload.resonance || []);
+    setNotifTab("signals");
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoadingNotif(false);
+  }
+};
+
 
   /* open a profile from notification item (payload carries userId, username, poem, avatarUrl) */
   const openFromNotification = (item) => {
@@ -356,27 +373,33 @@ const Dashboard = () => {
     <Bell size={18} className="text-white" />
 
     {/* Notification dot */}
-    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" />
+    {signals.length ? <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" /> : null}
   </button>
 </div>
 
 
-      {/* feed list */}
-      <div className="flex flex-col items-center relative z-10">
-        {loadingFeed ? (
-          <div className="py-8"></div>
-        ) : feedData.length === 0 ? (
-          <div className="py-8 text-sm">No profiles yet.</div>
-        ) : (
-          feedData.map((item) => (
-            <FeedCard
-              key={item.id || item.username}
-              item={item}
-              onExpand={setExpandedProfile}
-            />
-          ))
-        )}
-      </div>
+     {/* feed list */}
+<div
+  className="
+    flex flex-col items-center relative z-10
+    animate-slide-up
+  "
+>
+  {loadingFeed ? (
+    <div className="py-8"></div>
+  ) : feedData.length === 0 ? (
+    <div className="py-8 text-sm">No profiles yet.</div>
+  ) : (
+    feedData.map((item) => (
+      <FeedCard
+        key={item.id || item.username}
+        item={item}
+        onExpand={setExpandedProfile}
+      />
+    ))
+  )}
+</div>
+
 
       {/* profile modal (expanded) */}
       {expandedProfile && (
@@ -445,8 +468,8 @@ const Dashboard = () => {
               {loadingNotif ? (
                 <div>Loading…</div>
               ) : notifTab === "signals" ? (
-                notificationsData.signals.length ? (
-                  notificationsData.signals.map((s, idx) => (
+                signals.length ? (
+                  signals.map((s, idx) => (
                     <button
                       key={idx}
                       className="w-full text-left px-3 py-3 rounded-xl bg-[#fff4f4]"
@@ -466,8 +489,8 @@ const Dashboard = () => {
                   </div>
                 )
               ) : notifTab === "likes" ? (
-                notificationsData.likes.length ? (
-                  notificationsData.likes.map((l) => (
+                likes.length ? (
+                  likes.map((l) => (
                     <button
                       key={l.userId}
                       className="w-full text-left px-3 py-3 rounded-xl bg-[#fff4f4]"
@@ -484,8 +507,8 @@ const Dashboard = () => {
                     No pending Sparks.
                   </div>
                 )
-              ) : notificationsData.resonance.length ? (
-                notificationsData.resonance.map((r) => (
+              ) : resonance.length ? (
+                resonance.map((r) => (
                   <button
                     key={r.userId}
                     className="w-full text-left px-3 py-3 rounded-xl bg-[#fffaf0]"

@@ -48,9 +48,7 @@ const Login = () => {
         relative
         overflow-hidden
         bg-gradient-to-b
-        from-[#923b42]
-        via-[#e8afa8]
-        to-[#d38f8c]
+       from-[#700912] via-[#c4505a] to-[#dd908c]
         flex
         flex-col
         items-center
