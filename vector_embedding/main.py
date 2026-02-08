@@ -88,7 +88,7 @@ def find_matches(data: MatchRequest):
     return {"matches": matches}
 @app.get("/score")
 def get_score(maleRollNo: str, femaleRollNo: str):
-
+    print("Received score request for maleRollNo:", maleRollNo, "and femaleRollNo:", femaleRollNo)
     if maleRollNo not in store.male_rollno_vectors:
         raise HTTPException(status_code=404, detail="Male not found")
 
