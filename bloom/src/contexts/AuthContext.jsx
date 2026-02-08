@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { createContext, useState, useContext, useEffect } from "react";
 import api from "../api/api.ts";
 
@@ -7,6 +8,11 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const logout = () => {
+    api.post("/auth/logout").finally(() => {
+      setUser(null);
+    });
+  };
   useEffect(() => {
     api
       .get("/auth/me")
@@ -16,7 +22,7 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, logout  }} >
       {children}
     </AuthContext.Provider>
   );

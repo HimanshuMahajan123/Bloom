@@ -238,7 +238,7 @@ const payload = {
   <h2 className="text-center text-3xl font-playfair italic text-[#5b2a2a] mb-10">
 {username}  </h2>
 
-  <div className="space-y-8 font-lora  text-[#4a2c2a] underline font-lora italic p-2 text-center tracking-wide text-lg leading-[1.8]"> 
+  <div className="space-y-8 font-lora  text-[#4a2c2a]  font-lora italic p-2 text-center tracking-wide text-lg leading-[1.8]"> 
   {poem}
   </div>
 
