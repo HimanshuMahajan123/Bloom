@@ -139,6 +139,7 @@ const getMe = asyncHandler(async (req, res) => {
       onboardingCompleted: true,
       username: true,
       avatarUrl: true,
+      poem: true,
     },
   });
 
