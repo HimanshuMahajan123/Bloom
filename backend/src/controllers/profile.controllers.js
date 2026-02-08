@@ -67,7 +67,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   };
   console.log("Sending data to external service:", data);
   axios
-    .post("https://bloom-nsrj.onrender.com/user/register", data, {
+    .post(process.env.FAISS_SERVICE_URL+"/user/register", data, {
       timeout: 5000,
     })
     .catch((err) => {
@@ -239,7 +239,7 @@ const homePageContent = asyncHandler(async (req, res) => {
   );
 });
 
-export const notificationsPanel = asyncHandler(async (req, res) => {
+const notificationsPanel = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   /* ---------------- 1️⃣ Incoming Likes ---------------- */
@@ -336,7 +336,7 @@ export const notificationsPanel = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { signals, likes, resonance },
+        {  likes, resonance },
         "Notifications fetched successfully",
       ),
     );
