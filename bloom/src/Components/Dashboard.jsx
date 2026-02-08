@@ -247,7 +247,7 @@ const handleTouchMove = (e) => {
 
     {/* Notifications Panel */}
 {notifPanelOpen && (
-  <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6">
+  <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
     <div className="w-full max-w-md bg-white/95 rounded-3xl px-4 py-4 shadow-2xl flex flex-col">
 
       {/* Header */}
@@ -292,7 +292,7 @@ const handleTouchMove = (e) => {
             : resonance
           ).map((s) => (
             <button
-              key={s.id}
+              key={notifTab+s.id}
               onClick={() => {
   setExpandedProfile({
     ...s,

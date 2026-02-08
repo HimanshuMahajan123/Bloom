@@ -243,12 +243,14 @@ const homePageContent = asyncHandler(async (req, res) => {
 const notificationsPanel = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  /* ---------------- 1️⃣ Incoming Likes ---------------- */
+  /* ---------------- 1️⃣ Fetch ALL interactions involving me ---------------- */
 
-  const incomingLikes = await prisma.userInteraction.findMany({
+  const interactions = await prisma.userInteraction.findMany({
     where: {
-      toUserId: userId,
-      state: "LIKED",
+      OR: [
+        { fromUserId: userId },
+        { toUserId: userId },
+      ],
     },
     include: {
       fromUser: {
@@ -261,87 +263,95 @@ const notificationsPanel = asyncHandler(async (req, res) => {
           onboardingCompleted: true,
         },
       },
+      toUser: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          poem: true,
+          verified: true,
+          onboardingCompleted: true,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
   });
 
-  if (!incomingLikes.length) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, { likes: [], resonance: [] }));
+  /* ---------------- 2️⃣ Group by other user ---------------- */
+
+  const map = new Map();
+
+  for (const i of interactions) {
+    const other =
+      i.fromUserId === userId ? i.toUser : i.fromUser;
+
+    if (!other || !other.verified || !other.onboardingCompleted) continue;
+
+    if (!map.has(other.id)) {
+      map.set(other.id, {
+        user: other,
+        meToThem: null,
+        themToMe: null,
+        timestamps: [],
+      });
+    }
+
+    const entry = map.get(other.id);
+
+    if (i.fromUserId === userId) {
+      entry.meToThem = i.state;
+    } else {
+      entry.themToMe = i.state;
+    }
+
+    entry.timestamps.push(i.updatedAt);
   }
-
-  /* ---------------- 2️⃣ Bulk Reciprocal Lookup ---------------- */
-
-  const fromIds = incomingLikes.map((i) => i.fromUserId);
-
-  const reciprocals = await prisma.userInteraction.findMany({
-    where: {
-      fromUserId: userId,
-      toUserId: { in: fromIds },
-      state: "LIKED",
-    },
-  });
-
-  const reciprocalMap = new Map();
-  reciprocals.forEach((r) => {
-    reciprocalMap.set(r.toUserId, r);
-  });
 
   /* ---------------- 3️⃣ Classify ---------------- */
 
   const likes = [];
   const resonance = [];
 
-  for (const i of incomingLikes) {
-    const u = i.fromUser;
+  for (const entry of map.values()) {
+    const { user, meToThem, themToMe, timestamps } = entry;
 
-    if (!u || !u.verified || !u.onboardingCompleted) continue;
+    // ❌ Any rejection kills the entry
+    if (meToThem === "REJECTED" || themToMe === "REJECTED") {
+      continue;
+    }
 
-    const reciprocal = reciprocalMap.get(i.fromUserId);
-
-    if (reciprocal) {
+    // ❤️ Mutual like
+    if (meToThem === "LIKED" && themToMe === "LIKED") {
       resonance.push({
-        userId: u.id,
-        username: u.username,
-        avatarUrl: u.avatarUrl,
-        poem: u.poem,
-        matchedAt: new Date(
-          Math.max(
-            new Date(i.updatedAt).getTime(),
-            new Date(reciprocal.updatedAt).getTime(),
-          ),
-        ),
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        poem: user.poem,
+        matchedAt: new Date(Math.max(...timestamps.map(t => t.getTime()))),
       });
-    } else {
+      continue;
+    }
+
+    // 💌 One-sided like
+    if (meToThem === "LIKED" || themToMe === "LIKED") {
       likes.push({
-        userId: u.id,
-        username: u.username,
-        avatarUrl: u.avatarUrl,
-        poem: u.poem,
-        receivedAt: i.createdAt,
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        poem: user.poem,
+        receivedAt: new Date(Math.max(...timestamps.map(t => t.getTime()))),
       });
     }
   }
 
-  /* ---------------- 4️⃣ Signals ----------------
-     Live signals should be fetched from /signal/check.
-     Keep realtime + persistent logic separate.
-  */
-
-  const signals = [];
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { likes, resonance },
-        "Notifications fetched successfully",
-      ),
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { likes, resonance },
+      "Notifications fetched successfully"
+    )
+  );
 });
+
 
 const findPerfectMatches = asyncHandler(async (req, res) => {
   const userId = req.user.id;
@@ -523,7 +533,7 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
   return res.json(
     new ApiResponse(200, {
       matches: qualified.map((q) => ({
-        userId: q.user.id,
+        id: q.user.id,
         username: q.user.username,
         avatarUrl: q.user.avatarUrl,
         score: q.score,
@@ -533,7 +543,7 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
 });
 const matchInfo = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const otherUserId = req.params.id;
+  const otherUserId = req.params.userId;
 
   if (!otherUserId) {
     throw new ApiError(400, "Target user ID is required");
