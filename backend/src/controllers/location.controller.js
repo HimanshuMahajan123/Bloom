@@ -1,4 +1,4 @@
-const CENTRAL_THRESHOLD = 60;
+const CENTRAL_THRESHOLD = 0.6;
 const MAX_SIGNALS = 5;
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
@@ -109,6 +109,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
         }));
     }),
   );
+  console.log("FAISS scoring results:", scored);
 
   for (const result of scored) {
     if (
