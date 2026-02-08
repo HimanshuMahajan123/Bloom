@@ -108,8 +108,33 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
 
+      <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
+      {/* Ambient hearts & balloons */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
+        {[...Array(150)].map((_, i) => (
+          <img
+            key={`h-${i}`}
+            src={red_heart}
+            className="absolute w-6 opacity-50"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animation: `floatUp ${12 + Math.random() * 12}s linear infinite`,
+            }}
+          />
+        ))}
+        {[...Array(76)].map((_, i) => (
+          <img
+            key={`b-${i}`}
+            src={physics_balloon}
+            className="absolute w-16 opacity-40"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animation: `drift ${18 + Math.random() * 18}s linear infinite`,
+            }}
+          />
+        ))}
+      </div>
       {/* Top Bar */}
       <div className="flex justify-between items-center mb-6 relative z-10 px-2">
         <NavLink to="/profile" className="flex items-center gap-3">
@@ -166,64 +191,97 @@ export default function Dashboard() {
               {expandedProfile.poem || "No profile text"}
             </p>
 
-            {/* Swipe Buttons */}
-            <div className="mt-6 flex justify-center gap-6">
-              <button
-                onClick={() => handleSwipe("left")}
-                className="px-6 py-3 rounded-full bg-white/70"
-              >
-                Not my spark
-              </button>
-              <button
-                onClick={() => handleSwipe("right")}
-                className="px-6 py-3 rounded-full bg-[#af323f] text-white"
-              >
-                Feel the spark ❤️
-              </button>
-            </div>
+           
           </div>
         </div>
       )}
 
-      {/* Notifications Panel */}
-      {notifPanelOpen && (
-        <div className="fixed inset-0 z-50 flex justify-center bg-black/20 pt-8">
-          <div className="bg-white rounded-3xl w-full max-w-md px-4 py-4">
-           <div className="flex items-start justify-between">
-             <div className="flex gap-2 mb-3">
-              {["signals", "likes", "resonance"].map((t) => (
-                <button
-                  key={t}
-                  className={`px-3 py-2 rounded-full ${
-                    notifTab === t ? "bg-[#f9e8e8]" : ""
-                  }`}
-                  onClick={() => setNotifTab(t)}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <div onClick={()=>setNotifPanelOpen(false)}>
-              <X></X>
-            </div>
-           </div>
+    {/* Notifications Panel */}
+{notifPanelOpen && (
+  <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6">
+    <div className="w-full max-w-md bg-white/95 rounded-3xl px-4 py-4 shadow-2xl flex flex-col">
 
-            {(notifTab === "signals" ? signals : notifTab === "likes" ? likes : resonance)
-              .map((s) => (
-                <button
-                  key={s.id}
-                  className="w-full text-left px-3 py-3 rounded-xl bg-[#fff4f4]"
-                  onClick={() => {
-                    setExpandedProfile({ ...s, isSignal: true });
-                    setNotifPanelOpen(false);
-                  }}
-                >
-                  {s.username}
-                </button>
-              ))}
-          </div>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex gap-2">
+          {["signals", "likes", "resonance"].map((t) => (
+            <button
+              key={t}
+              className={`
+                px-3 py-2 rounded-full text-sm capitalize transition
+                ${notifTab === t
+                  ? "bg-[#f9e8e8] text-[#5b2a2a]"
+                  : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"}
+              `}
+              onClick={() => setNotifTab(t)}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-      )}
+
+        <button
+          onClick={() => setNotifPanelOpen(false)}
+          className="p-2 rounded-full hover:bg-black/5 transition"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto space-y-3">
+        {(notifTab === "signals"
+          ? signals
+          : notifTab === "likes"
+          ? likes
+          : resonance
+        ).length ? (
+          (notifTab === "signals"
+            ? signals
+            : notifTab === "likes"
+            ? likes
+            : resonance
+          ).map((s) => (
+            <button
+              key={s.id}
+              onClick={() => {
+                setExpandedProfile({ ...s, isSignal: true });
+                setNotifPanelOpen(false);
+              }}
+              className="
+                w-full text-left rounded-2xl px-4 py-4
+                bg-[#fff7f6]
+                hover:bg-[#fdeeee]
+                transition
+                shadow-sm
+                flex flex-col gap-1
+              "
+            >
+              {/* Username */}
+              <div className="font-playfair italic text-base text-[#5b2a2a] truncate">
+                {s.username || "Someone nearby"}
+              </div>
+
+              {/* Subtitle */}
+              <div className="font-lora text-xs text-[#5b2a2a]/70">
+                {notifTab === "signals" && "A signal crossed your path"}
+                {notifTab === "likes" && "They felt a spark"}
+                {notifTab === "resonance" && "A mutual bloom"}
+              </div>
+            </button>
+          ))
+        ) : (
+          <div className="text-sm text-center py-10 text-[#5b2a2a]/60">
+            {notifTab === "signals" && "No signals nearby right now."}
+            {notifTab === "likes" && "No sparks yet."}
+            {notifTab === "resonance" && "No blooms yet."}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

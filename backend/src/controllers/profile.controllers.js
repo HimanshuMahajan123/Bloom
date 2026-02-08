@@ -268,7 +268,7 @@ const notificationsPanel = asyncHandler(async (req, res) => {
   if (!incomingLikes.length) {
     return res
       .status(200)
-      .json(new ApiResponse(200, { signals: [], likes: [], resonance: [] }));
+      .json(new ApiResponse(200, {  likes: [], resonance: [] }));
   }
 
   /* ---------------- 2️⃣ Bulk Reciprocal Lookup ---------------- */
