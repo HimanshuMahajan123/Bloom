@@ -67,7 +67,7 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   };
   console.log("Sending data to external service:", data);
   axios
-    .post(process.env.FAISS_SERVICE_URL+"/user/register", data, {
+    .post(process.env.FAISS_SERVICE_URL + "/user/register", data, {
       timeout: 5000,
     })
     .catch((err) => {
@@ -336,10 +336,176 @@ const notificationsPanel = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        {  likes, resonance },
+        { likes, resonance },
         "Notifications fetched successfully",
       ),
     );
 });
 
-export { submitAnswersAndGenerateProfile, homePageContent, notificationsPanel };
+export const findPerfectMatches = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const myGender = req.user.gender;
+  const myRoll = req.user.rollNumber;
+
+  const PERFECT_THRESHOLD = 0.7;
+  const TTL_MINUTES = 60 * 24; // 24 hours
+
+  /* --------------------------------------------------
+  Fetch all eligible opposite-gender users
+  -------------------------------------------------- */
+
+  const allCandidates = await prisma.user.findMany({
+    where: {
+      id: { not: userId },
+      gender: { not: myGender },
+      verified: true,
+      onboardingCompleted: true,
+    },
+    select: {
+      id: true,
+      rollNumber: true,
+      username: true,
+      avatarUrl: true,
+    },
+  });
+
+  if (!allCandidates.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  const candidateIds = allCandidates.map((u) => u.id);
+
+  /* --------------------------------------------------
+     2️⃣ Remove anyone with ANY past interaction
+  -------------------------------------------------- */
+
+  const interactions = await prisma.userInteraction.findMany({
+    where: {
+      OR: [
+        { fromUserId: userId, toUserId: { in: candidateIds } },
+        { toUserId: userId, fromUserId: { in: candidateIds } },
+      ],
+    },
+    select: {
+      fromUserId: true,
+      toUserId: true,
+    },
+  });
+
+  const blocked = new Set();
+  interactions.forEach((i) => {
+    blocked.add(i.fromUserId);
+    blocked.add(i.toUserId);
+  });
+
+  const interactionFiltered = allCandidates.filter((u) => !blocked.has(u.id));
+
+  if (!interactionFiltered.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  /* --------------------------------------------------
+    Remove users with existing unexpired signals
+  -------------------------------------------------- */
+  const existingSignals = await prisma.signal.findMany({
+    where: {
+      fromUserId: userId,
+      toUserId: { in: interactionFiltered.map((u) => u.id) },
+      expiresAt: { gt: new Date() },
+    },
+    select: { toUserId: true },
+  });
+
+  const signaled = new Set(existingSignals.map((s) => s.toUserId));
+
+  const signalFiltered = interactionFiltered.filter((u) => !signaled.has(u.id));
+
+  if (!signalFiltered.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  /* --------------------------------------------------
+     4️⃣ FAISS scoring (parallel)
+  -------------------------------------------------- */
+
+  const scored = await Promise.allSettled(
+    signalFiltered.map((u) => {
+      let maleRoll, femaleRoll;
+
+      if (myGender === "MALE") {
+        maleRoll = myRoll;
+        femaleRoll = u.rollNumber;
+      } else {
+        maleRoll = u.rollNumber;
+        femaleRoll = myRoll;
+      }
+
+      return axios
+        .get(process.env.FAISS_SERVICE_URL + "/score", {
+          params: {
+            maleRollNo: maleRoll,
+            femaleRollNo: femaleRoll,
+          },
+          timeout: 2000,
+        })
+        .then((r) => ({
+          user: u,
+          score: Number(r.data?.score || 0),
+        }));
+    }),
+  );
+
+  const qualified = [];
+
+  for (const r of scored) {
+    if (r.status === "fulfilled" && r.value.score >= PERFECT_THRESHOLD) {
+      qualified.push(r.value);
+    }
+  }
+
+  if (!qualified.length) {
+    return res.json(new ApiResponse(200, { matches: [] }));
+  }
+
+  /* --------------------------------------------------
+     5️⃣ Insert signals atomically
+  -------------------------------------------------- */
+
+  const expiresAt = new Date(Date.now() + TTL_MINUTES * 60 * 1000);
+
+  await prisma.$transaction(
+    qualified.map((q) =>
+      prisma.signal.create({
+        data: {
+          fromUserId: userId,
+          toUserId: q.user.id,
+          score: q.score,
+          expiresAt,
+          source: "PROXIMITY",
+        },
+      }),
+    ),
+  );
+
+  /* --------------------------------------------------
+     6️⃣ Response
+  -------------------------------------------------- */
+
+  return res.json(
+    new ApiResponse(200, {
+      matches: qualified.map((q) => ({
+        userId: q.user.id,
+        username: q.user.username,
+        avatarUrl: q.user.avatarUrl,
+        score: q.score,
+      })),
+    }),
+  );
+});
+
+export {
+  submitAnswersAndGenerateProfile,
+  homePageContent,
+  notificationsPanel,
+  findPerfectMatches,
+};
