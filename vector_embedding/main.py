@@ -48,7 +48,12 @@ def register_user(data: RegisterRequest):
     gender = data.responses[4].upper()
     if gender not in ("MALE", "FEMALE"):
         raise HTTPException(status_code=400, detail="Invalid gender")
-
+    #if the user exists in any one of the indexes remove it and again add it to the correct index
+    if data.rollno in store.male_rollno_vectors:
+        store.remove_user_vector(data.rollno, " MALE")
+    if data.rollno in store.female_rollno_vectors:
+        store.remove_user_vector(data.rollno, "FEMALE") 
+        
     vector = create_weighted_vector(data.responses)
     store.add_user_vector(data.rollno, vector, gender)
 

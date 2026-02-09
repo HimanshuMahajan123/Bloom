@@ -3,6 +3,7 @@ import scroll_bg from "../assets/paper_g.png";
 import multi_heart from "../assets/multi_heart.png";
 import { NavLink } from "react-router-dom";
 import { generateProfile } from "../api/generate";
+import BloomGuideCard from "./BloomGuideCard";
 const WhisperInput = ({ value, onChange, placeholder }) => {
   return (
     <div className="relative">
@@ -108,6 +109,8 @@ const GenerateProfile = () => {
   const [poem, setPoem] = useState(
     "Roses are red, violets are blue, I'm not great at poems, but hey, nice to meet you.",
   );
+  const [showGuide , setShowGuide] = useState(false) ; 
+  const [accepted , setAccepted] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState("");
   const current = questions[step];
 
@@ -133,7 +136,7 @@ const GenerateProfile = () => {
         setAvatarUrl(data.avatarUrl);
         setRevealed(true);
       } catch (err) {
-        console.error("Error generating profile:", err);
+                console.error("Error generating profile:", err);
         alert("Something went wrong. Please try again.");
       }
     } else {
@@ -252,25 +255,38 @@ const GenerateProfile = () => {
 
               {/* CTA */}
               <div className="px-6 py-4 shrink-0 flex justify-center">
-                <NavLink
-                  to="/app"
-                  className="
-              text-sm
-              py-3 px-6
-              bg-[#b93d49]
-              text-white
-              rounded-xl
-              font-lora italic
-              hover:no-underline
-            "
-                >
-                  Explore your matches
-                </NavLink>
+                <button
+  onClick={() => setShowGuide(true)}
+  className="
+    text-sm
+    py-3 px-6
+    bg-[#b93d49]
+    text-white
+    rounded-xl
+    font-lora italic
+    hover:bg-[#a8323d]
+  "
+>
+  Explore your matches
+</button>
+
               </div>
             </div>
           </div>
         </div>
       )}
+  <BloomGuideCard
+  open={showGuide}
+  accepted={accepted}
+  setAccepted={setAccepted}
+  onClose={() => setShowGuide(false)}
+  onEnter={() => {
+    setShowGuide(false);
+    window.location.href = "/app";
+  }}
+/>
+
+
     </div>
   );
 };
