@@ -90,10 +90,11 @@ export function getNearbyUsers(userId, radius = 50) {
       if (uid !== userId) candidates.add(uid);
     }
   }
-
+  console.log("candidates are ", candidates);
   const nearby = [];
   for (const uid of candidates) {
     const other = userLocation.get(uid);
+    console.log(`Checking candidate ${uid} with location:`, other);
     if (!other) continue;
     console.log(
       `Checking distance to user ${uid} at (${other.lat}, ${other.lng})`,
