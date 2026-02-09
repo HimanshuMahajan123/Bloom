@@ -55,7 +55,7 @@ const loginUser = asyncHandler(async (req, res) => {
     });
   }
 
-  const token = generateToken();
+  const token = generateToken(user.id);
 
   await prisma.emailVerification.upsert({
     where: { userId: user.id },
