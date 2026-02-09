@@ -33,14 +33,14 @@ function getNeighborCells(cellKey) {
 
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
@@ -48,6 +48,7 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 /* ---------- public API ---------- */
 
 export function updateUserLocation(userId, lat, lng) {
+  console.log(`Updating location for user ${userId}: (${lat}, ${lng})`);
   const newCell = getCellKey(lat, lng);
   const oldCell = userCellIndex.get(userId);
 
@@ -95,10 +96,7 @@ export function getNearbyUsers(userId, radius = 50) {
     // stale location guard
     if (Date.now() - other.updatedAt > 30_000) continue;
 
-    const d = distanceMeters(
-      loc.lat, loc.lng,
-      other.lat, other.lng
-    );
+    const d = distanceMeters(loc.lat, loc.lng, other.lat, other.lng);
 
     if (d <= radius) nearby.push(uid);
   }
