@@ -31,25 +31,28 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   const now = new Date();
 
   /* 1️⃣ Fetch inbox signals ONLY */
-  const existingSignals = await prisma.signal.findMany({
-    where: {
-      toUserId: userId,
-      expiresAt: { gt: now },
-    },
-    include: {
-      fromUser: {
-        select: {
-          id: true,
-          username: true,
-          avatarUrl: true,
-          poem: true,
-          source: true,
-        },
+  //select user details from USER and signal details from SIGNAL where toUserId = userId and expiresAt > now order by createdAt desc limit MAX_SIGNALS
+const existingSignals = await prisma.signal.findMany({
+  where: {
+    toUserId: userId,
+    expiresAt: { gt: now },
+  },
+  select: {
+    score: true,
+    source: true,
+    fromUser: {
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+        poem: true,
       },
     },
-    orderBy: { createdAt: "desc" },
-    take: MAX_SIGNALS,
-  });
+  },
+  orderBy: { createdAt: "desc" },
+  take: MAX_SIGNALS,
+});
+
 
   /* 2️⃣ Nearby users */
   const nearby = getNearbyUsers(userId, 50);
@@ -86,7 +89,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   });
 
   /* 4️⃣ Remove already-signaled users */
-  const alreadySignaled = new Set(existingSignals.map((s) => s.fromUserId));
+  // const alreadySignaled = new Set(existingSignals.map((s) => s.fromUserId));
 
   const candidates = nearby.filter(
     (uid) => uid !== userId && !blocked.has(uid),
@@ -127,8 +130,15 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   /* 6️⃣ Score via FAISS */
   const scored = await Promise.allSettled(
     users.map((u) => {
-      const maleRoll = myGender === "MALE" ? myRoll : u.rollNumber;
-      const femaleRoll = myGender === "FEMALE" ? myRoll : u.rollNumber;
+    let maleRoll, femaleRoll;
+
+if (myGender === "MALE") {
+  maleRoll = myRoll;
+  femaleRoll = u.rollNumber;
+} else {
+  maleRoll = u.rollNumber;
+  femaleRoll = myRoll;
+}
 
       return axios
         .get(process.env.FAISS_SERVICE_URL + "/score", {
@@ -146,63 +156,65 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   );
 
   const newSignals = [];
+const ops = [];
 
-  for (const result of scored) {
-    if (
-      result.status === "fulfilled" &&
-      result.value.score >= CENTRAL_THRESHOLD
-    ) {
-      const { user, score } = result.value;
+for (const result of scored) {
+  if (result.status !== "fulfilled") continue;
+  if (result.value.score < CENTRAL_THRESHOLD) continue;
 
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const { user, score } = result.value;
+  const expiresAt = new Date(Date.now() + 86400000);
 
-      /* Create inbox signal for ME */
-      await prisma.signal.upsert({
-        where: {
-          fromUserId_toUserId: {
-            fromUserId: user.id,
-            toUserId: userId,
-          },
-        },
-        update: { expiresAt, score },
-        create: {
+  ops.push(
+    prisma.signal.upsert({
+      where: {
+        fromUserId_toUserId: {
           fromUserId: user.id,
           toUserId: userId,
-          score,
-          source: "PROXIMITY",
-          expiresAt,
         },
-      });
-
-      /* Create inbox signal for THEM */
-      await prisma.signal.upsert({
-        where: {
-          fromUserId_toUserId: {
-            fromUserId: userId,
-            toUserId: user.id,
-          },
-        },
-        update: { expiresAt, score },
-        create: {
+      },
+      update: { expiresAt, score },
+      create: {
+        fromUserId: user.id,
+        toUserId: userId,
+        score,
+        source: "PROXIMITY",
+        expiresAt,
+      },
+    }),
+    prisma.signal.upsert({
+      where: {
+        fromUserId_toUserId: {
           fromUserId: userId,
           toUserId: user.id,
-          score,
-          source: "PROXIMITY",
-          expiresAt,
         },
-      });
-
-      newSignals.push({
-        id: user.id,
-        username: user.username,
-        avatarUrl: user.avatarUrl,
-        poem: user.poem,
+      },
+      update: { expiresAt, score },
+      create: {
+        fromUserId: userId,
+        toUserId: user.id,
         score,
-      });
+        source: "PROXIMITY",
+        expiresAt,
+      },
+    }),
+  );
 
-      if (existingSignals.length + newSignals.length >= MAX_SIGNALS) break;
-    }
-  }
+  newSignals.push({
+    id: user.id,
+    username: user.username,
+    avatarUrl: user.avatarUrl,
+    poem: user.poem,
+    score,
+    source: "PROXIMITY",
+  });
+  if (existingSignals.length + newSignals.length >= MAX_SIGNALS) break;
+}
+
+if (ops.length) {
+  await prisma.$transaction(ops);
+}
+
 
   return res.json(
     new ApiResponse(200, {

@@ -5,6 +5,10 @@ import { BrowserRouter } from "react-router";
 import App from "./App";
 import AuthProvider from "./contexts/AuthContext";
 import "./index.css";
+import { useEffect } from "react";
+// example for React
+
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

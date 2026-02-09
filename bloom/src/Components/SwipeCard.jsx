@@ -10,7 +10,6 @@ const SwipeCard = ({
   handleTouchEnd,
   handleSwipe,
   onClose,
-  source,
 }) => {
   if (!expandedProfile) return null;
 
@@ -37,7 +36,6 @@ const SwipeCard = ({
             url(${multi_heart})
           `,
           backgroundSize: "cover, 220px",
-          backgroundColor: source === "PROXIMITY" ? "#ffe4e1" : "#fff8ed",
         }}
         onTouchStart={isTouch ? handleTouchStart : undefined}
         onTouchMove={isTouch ? handleTouchMove : undefined}

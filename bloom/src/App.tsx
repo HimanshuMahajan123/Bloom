@@ -10,6 +10,8 @@ import MyProfile from "./Components/MyProfile";
 // ProtectedRoute.tsx (or inline)
 import { Navigate } from "react-router";
 import './App.css'; 
+import { useEffect } from "react";
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -30,6 +32,13 @@ const RootRoute = () => {
 
 
 const App = () => {
+  useEffect(() => {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("../sw.js")
+      .then(reg => console.log("Service Worker registered:", reg))
+      .catch(err => console.log("SW registration failed:", err));
+  }
+}, []);
   return (
     <div
       className="

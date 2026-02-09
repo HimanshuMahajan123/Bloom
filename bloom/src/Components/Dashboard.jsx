@@ -229,7 +229,6 @@ const handleTouchMove = (e) => {
       handleTouchMove={handleTouchMove}
       handleTouchEnd={handleTouchEnd}
       handleSwipe={handleSwipe}
-      source={expandedProfile.source}
       onClose={() => setExpandedProfile(null)}
     />
 )}
@@ -249,10 +248,19 @@ const handleTouchMove = (e) => {
     {/* Notifications Panel */}
 {notifPanelOpen && (
   <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
-    <div className="w-full max-w-md bg-white/95 rounded-3xl px-4 py-4 shadow-2xl flex flex-col">
+<div
+  className="
+    w-full max-w-md
+    bg-white/95
+    rounded-3xl
+    shadow-2xl
+    flex flex-col
+    max-h-[85vh]
+  "
+>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+<div className="flex items-start justify-between px-4 py-4 shrink-0">
         <div className="flex gap-2">
           {["signals", "likes", "resonance"].map((t) => (
             <button
@@ -279,7 +287,7 @@ const handleTouchMove = (e) => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto space-y-3">
+<div className="flex-1 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
         {(notifTab === "signals"
           ? signals
           : notifTab === "likes"
@@ -303,12 +311,15 @@ const handleTouchMove = (e) => {
 
               className="
                 w-full text-left rounded-2xl px-4 py-4
-                bg-[#fff7f6]
+               
                 hover:bg-[#fdeeee]
                 transition
                 shadow-sm
                 flex flex-col gap-1
               "
+              style={{
+                backgroundColor: s.source=="PROXIMITY"?"#fff7f6":"rgba(187,151,35,1)"
+              }}
             >
               {/* Username */}
               <div className="font-playfair italic text-base text-[#5b2a2a] truncate">

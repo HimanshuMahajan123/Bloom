@@ -55,7 +55,7 @@ const loginUser = asyncHandler(async (req, res) => {
     });
   }
 
-  const token = generateToken();
+  const token = generateToken(user);
 
   await prisma.emailVerification.upsert({
     where: { userId: user.id },
@@ -93,8 +93,8 @@ const verifyEmail = asyncHandler(async (req, res) => {
     where: { token },
     include: { user: true },
   });
-
-  if (!record || record.expiresAt < new Date()) {
+  console.log("Verification record found:", record); 
+  if (!record || record.expiresAt < new Date(Date.now())) {
     throw new ApiError(400, "Invalid or expired token");
   }
 
