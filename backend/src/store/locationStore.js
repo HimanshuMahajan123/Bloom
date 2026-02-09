@@ -14,10 +14,20 @@ const userLocation = new Map();
 /* ---------- helpers ---------- */
 
 function getCellKey(lat, lng) {
-  const x = Math.floor(lat / CELL_SIZE);
-  const y = Math.floor(lng / CELL_SIZE);
+  const latSize = CELL_SIZE;
+  const lngSize = CELL_SIZE / Math.cos((lat * Math.PI) / 180);
+
+  const x = Math.floor(lat / latSize);
+  const y = Math.floor(lng / lngSize);
+
   return `${x}:${y}`;
 }
+function movedSignificantly(oldLoc, newLat, newLng, threshold = 10) {
+  if (!oldLoc) return true;
+  const d = distanceMeters(oldLoc.lat, oldLoc.lng, newLat, newLng);
+  return d >= threshold;
+}
+
 
 function getNeighborCells(cellKey) {
   const [x, y] = cellKey.split(":").map(Number);
@@ -49,6 +59,11 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 
 export function updateUserLocation(userId, lat, lng) {
   console.log(`Updating location for user ${userId}: (${lat}, ${lng})`);
+  const prev = userLocation.get(userId);
+  if (prev && !movedSignificantly(prev, lat, lng)) {
+    console.log(`User ${userId} has not moved significantly. Skipping update.`);
+    return;
+  }
   const newCell = getCellKey(lat, lng);
   const oldCell = userCellIndex.get(userId);
 
@@ -100,7 +115,7 @@ export function getNearbyUsers(userId, radius = 50) {
       `Checking distance to user ${uid} at (${other.lat}, ${other.lng})`,
     );
     // stale location guard
-    if (new Date(Date.now()) - other.updatedAt > 30_000) continue;
+if (Date.now() - other.updatedAt > 30_000) continue;
     console.log(
       `Distance to user ${uid} is ${distanceMeters(loc.lat, loc.lng, other.lat, other.lng)} meters`,
     );
