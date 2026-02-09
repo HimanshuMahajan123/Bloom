@@ -74,16 +74,19 @@ export function updateUserLocation(userId, lat, lng) {
 export function getNearbyUsers(userId, radius = 50) {
   const loc = userLocation.get(userId);
   if (!loc) return [];
-
+  console.log(
+    `Finding nearby users for ${userId} at (${loc.lat}, ${loc.lng}) within ${radius}m`,
+  );
   const cellKey = userCellIndex.get(userId);
   if (!cellKey) return [];
-
+  console.log(`User ${userId} is in cell ${cellKey}`);
   const candidates = new Set();
 
   for (const neighbor of getNeighborCells(cellKey)) {
     const users = spatialGrid.get(neighbor);
     if (!users) continue;
     for (const uid of users) {
+      console.log(`Neighbor cell ${neighbor} has user ${uid}`);
       if (uid !== userId) candidates.add(uid);
     }
   }
@@ -92,12 +95,16 @@ export function getNearbyUsers(userId, radius = 50) {
   for (const uid of candidates) {
     const other = userLocation.get(uid);
     if (!other) continue;
-
+    console.log(
+      `Checking distance to user ${uid} at (${other.lat}, ${other.lng})`,
+    );
     // stale location guard
-    if (Date.now() - other.updatedAt > 30_000) continue;
-
+    if (new Date(Date.now()) - other.updatedAt > 30_000) continue;
+    console.log(
+      `Distance to user ${uid} is ${distanceMeters(loc.lat, loc.lng, other.lat, other.lng)} meters`,
+    );
     const d = distanceMeters(loc.lat, loc.lng, other.lat, other.lng);
-
+    console.log(`Distance to user ${uid} is ${d} meters`);
     if (d <= radius) nearby.push(uid);
   }
 
