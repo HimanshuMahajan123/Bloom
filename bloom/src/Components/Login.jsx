@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import login_balloon from "../assets/login_balloon.png";
 import heart_pattern from "../assets/heart_pattern.png";
 import { Heart } from "lucide-react";
-import { requestMagicLink} from "../api/login";
+import { requestMagicLink } from "../api/login";
 
 const Login = () => {
   const [showForm, setShowForm] = useState(false);
@@ -58,18 +58,13 @@ const Login = () => {
     >
       {/* CONTENT */}
       <div className="relative z-10 max-w-md w-full text-center">
-
         {/* TITLE */}
         <h1 className="pt-8 text-3xl md:text-4xl font-playfair italic text-white/95 drop-shadow-md">
           Love, delivered by air
         </h1>
 
-
-        
-
         {/* FORM AREA */}
         <div className="relative mt-10 flex justify-center">
-
           {/* HEART BACKDROP */}
           <div
             className="absolute inset-0 flex justify-center items-center pointer-events-none"
@@ -82,10 +77,9 @@ const Login = () => {
             }}
           />
 
-          {!sent ?
-          (
-          <div
-            className={`
+          {!sent ? (
+            <div
+              className={`
               relative
               z-10
               w-full
@@ -98,36 +92,89 @@ const Login = () => {
               ease-out
               ${showForm ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}
             `}
-          >
-            {/* BALLOON */}
-        <div className=" flex justify-center">
-          <img
-            src={login_balloon}
-            alt="Love balloon"
-            className="
-              w-32
-              opacity-90
-              drop-shadow-xl
-              animate-[float_6s_ease-in-out_infinite]
-            "
-          />
-        </div>
-            {/* MOTIVE TEXT */}
-            <p className="text-xs font-lora italic text-white/80 px-4 leading-relaxed">
-              Where should your spark begin?  
-              We’ll only use this to let you know when someone nearby feels the same.
-            </p>
+            >
+              {/* BALLOON */}
+              <div className=" flex justify-center">
+                {/* GLASS RULES PANEL */}
+                {/* BALLOON + GLASS STACK */}
+                <div className="relative flex justify-center items-center min-h-[220px] mb-4">
+                  {/*  BALLOON (background layer) */}
+                  <img
+                    src={login_balloon}
+                    alt="Love balloon"
+                    className="
+      absolute
+      z-0
+      w-36
+      opacity-80
+      drop-shadow-xl
+      animate-[float_6s_ease-in-out_infinite]
+    "
+                  />
+                  {/*  GLASS RULES PANEL (foreground) */}
+                  <div className="relative z-20 mx-auto w-full max-w-sm px-3">
+                    <div
+                      className="
+        bg-white/1
+        
+        rounded-3xl
+        p-5
+        sm:p-6
+        shadow-xl
+        text-center
+      "
+                    >
+                      <h3 className="font-playfair italic text-white text-lg sm:text-xl mb-3">
+                        How Bloom Works ✨
+                      </h3>
 
-            {/* EMAIL INPUT */}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError("");
-              }}
-              placeholder="Your official email"
-              className={`
+                      <ul className="space-y-2 mb-4">
+                        <li className="text-xs sm:text-sm font-lora italic text-white/90">
+                          Click the magic link we send to your email
+                        </li>
+                        <li className="text-xs sm:text-sm font-lora italic text-white/90">
+                          Answer a few gentle questions about yourself
+                        </li>
+                        <li className="text-xs sm:text-sm font-lora italic text-white/90">
+                          Discover signals waiting nearby 💞
+                        </li>
+                      </ul>
+
+                      <p className="text-xs sm:text-sm font-lora italic text-white/90 leading-relaxed">
+                        We quietly look for people around you whose answers feel
+                        close to yours. When someone appears, you can swipe
+                        right to show interest — or left to drift past.
+                        <br />
+                        <br />
+                        If both hearts move the same way…
+                        <span className="font-semibold">
+                          {" "}
+                          that’s resonance.
+                        </span>{" "}
+                        💫 And we’ll let you know when the feeling flows both
+                        ways.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* MOTIVE TEXT */}
+              <p className="text-xs font-lora italic text-white/80 px-4 leading-relaxed">
+                Where should your spark begin? We’ll only use this to let you
+                know when someone nearby feels the same.
+              </p>
+
+              {/* EMAIL INPUT */}
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError("");
+                }}
+                placeholder="Your official email"
+                className={`
                 w-full
                 py-3
                 px-4
@@ -145,20 +192,20 @@ const Login = () => {
                  placeholder:italic
                 placeholder:text-[#4a2c2a]/60
               `}
-            />
+              />
 
-            {/* ERROR MESSAGE */}
-            {error && (
-              <p className="text-xs text-white/90 bg-[#af323f]/60 rounded-lg py-1 px-3">
-                {error}
-              </p>
-            )}
+              {/* ERROR MESSAGE */}
+              {error && (
+                <p className="text-xs text-white/90 bg-[#af323f]/60 rounded-lg py-1 px-3">
+                  {error}
+                </p>
+              )}
 
-            {/* BUTTON */}
-            <button
-              onClick={handleLogin}
-              disabled={loading || !email}
-              className={`
+              {/* BUTTON */}
+              <button
+                onClick={handleLogin}
+                disabled={loading || !email}
+                className={`
                 w-full
                 group
                 py-3
@@ -181,26 +228,27 @@ const Login = () => {
                     : "bg-[#af323f]/90 hover:bg-[#af323f] hover:shadow-[0_14px_40px_rgba(175,50,63,0.45)]"
                 }
               `}
-            >
-              {loading ? (
-                <>
-                  <span>Sending your spark…</span>
-                  <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
-                </>
-              ) : (
-                <>
-                  <span>Send my spark</span>
-                  <Heart size={16} className="rotate-[45deg] group-hover:rotate-0  transition" />
-                </>
-              )}
-            </button>
-
-          </div>
-          )
-          :  (
-  /* SUCCESS STATE */
-  <div
-    className="
+              >
+                {loading ? (
+                  <>
+                    <span>Sending your spark…</span>
+                    <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                  </>
+                ) : (
+                  <>
+                    <span>Send my spark</span>
+                    <Heart
+                      size={16}
+                      className="rotate-[45deg] group-hover:rotate-0  transition"
+                    />
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            /* SUCCESS STATE */
+            <div
+              className="
       relative
       z-10
       w-full
@@ -212,31 +260,28 @@ const Login = () => {
       text-center
       animate-fade-in
     "
-  >
-    <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-      <Heart className="text-[#af323f]" size={24} />
-    </div>
+            >
+              <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                <Heart className="text-[#af323f]" size={24} />
+              </div>
 
-    <p className="font-playfair italic text-lg text-white/95">
-      Your spark is on its way
-    </p>
+              <p className="font-playfair italic text-lg text-white/95">
+                Your spark is on its way
+              </p>
 
-    <p className="font-lora text-sm text-white/80 leading-relaxed px-4">
-      We’ve sent a little something to <br />
-      <span className="font-medium">{email}</span>  
-      <br />
-      Open your inbox to let it glow ✨
-    </p>
+              <p className="font-lora text-sm text-white/80 leading-relaxed px-4">
+                We’ve sent a little something to <br />
+                <span className="font-medium">{email}</span>
+                <br />
+                Open your inbox to let it glow ✨
+              </p>
 
-    <p className="text-xs font-lora italic text-white/60">
-      Didn’t see it? Check your spam folder.
-    </p>
-  </div>
-)}
-
-            
+              <p className="text-xs font-lora italic text-white/60">
+                Didn’t see it? Check your spam folder.
+              </p>
+            </div>
+          )}
         </div>
-
       </div>
     </div>
   );
