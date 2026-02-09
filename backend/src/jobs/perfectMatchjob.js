@@ -1,10 +1,12 @@
 import cron from "node-cron";
 import prisma from "../db/prisma.js";
 import { findPerfectMatches } from "../controllers/profile.controllers.js";
-const PERFECT_THRESHOLD = 0.7; // Adjust this threshold as needed
-const TTL_MINUTES = 24*60; // Time-to-live for perfect matches in minutes
-//cron format is "minute hour dayOfMonth month dayOfWeek"
-cron.schedule("0 3 * * *", async () => { // Runs at 3:00 AM every day
+const PERFECT_THRESHOLD = 0.7; // Minimum score for a perfect match
+const TTL = 3 * 60; // 3 hours in milliseconds
+//cron format is "minute hour dayOfMonth month dayOfWeek
+//every 3 hrs  fetch location of all users and calculate signals
+cron.schedule("0 */3 * * *", async () => {
+  // Runs every 3 hours
   console.log("✅ Perfect match job started");
 
   try {
@@ -16,10 +18,9 @@ cron.schedule("0 3 * * *", async () => { // Runs at 3:00 AM every day
       select: { id: true },
     });
 
-   await Promise.allSettled(
-  users.map(u => findPerfectMatches(u.id))
-);
-
+    await Promise.allSettled(
+      users.map((u) => findPerfectMatches(u.id, PERFECT_THRESHOLD, TTL)),
+    );
 
     console.log(" Perfect match job finished");
   } catch (err) {

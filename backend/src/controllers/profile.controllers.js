@@ -605,8 +605,12 @@ const matchInfo = asyncHandler(async (req, res) => {
   if (!otherUser) {
     throw new ApiError(404, "User not found");
   }
-
-  return res.json(new ApiResponse(200, {}, "Match info fetched successfully"));
+  const privateInfo = {
+    rollNumber: otherUser.rollNumber,
+  };
+  return res.json(
+    new ApiResponse(200, { privateInfo }, "Match info fetched successfully"),
+  );
 });
 
 export {
