@@ -93,7 +93,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     where: { token },
     include: { user: true },
   });
-
+  console.log("Verification record found:", record); 
   if (!record || record.expiresAt < new Date(Date.now())) {
     throw new ApiError(400, "Invalid or expired token");
   }
