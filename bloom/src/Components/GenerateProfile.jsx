@@ -38,7 +38,6 @@ const WhisperInput = ({ value, onChange, placeholder }) => {
           focus:ring-2
           focus:ring-[#af323f]/40
         "
-    
       />
     </div>
   );
@@ -52,7 +51,8 @@ const questions = [
   },
   {
     id: "2",
-    question: "If you had a free evening with no responsibilities, how would you spend it?",
+    question:
+      "If you had a free evening with no responsibilities, how would you spend it?",
     placeholder: "Quiet night in, friends, creating something…",
   },
   {
@@ -62,17 +62,19 @@ const questions = [
   },
   {
     id: "4",
-    question: "Which three words would your closest friend use to describe you?",
+    question:
+      "Which three words would your closest friend use to describe you?",
     placeholder: "And why one of them fits you",
   },
   {
-    id:"5", 
-    question:"Select your gender to help us find the right matches for you",
+    id: "5",
+    question: "Select your gender to help us find the right matches for you",
     placeholder: "Male",
   },
   {
     id: "6",
-    question: "What are you secretly hoping college gives you before graduation?",
+    question:
+      "What are you secretly hoping college gives you before graduation?",
     placeholder: "Confidence, love, clarity, memories…",
   },
   {
@@ -92,55 +94,58 @@ const questions = [
   },
   {
     id: "10",
-    question: "If someone wrote a short poem about you after meeting once, what would its mood be?",
+    question:
+      "If someone wrote a short poem about you after meeting once, what would its mood be?",
     placeholder: "Playful, calm, mysterious, dreamy…",
   },
 ];
 
 const GenerateProfile = () => {
   const [step, setStep] = useState(0);
-const [answers, setAnswers] = useState(Array(questions.length).fill(""));
+  const [answers, setAnswers] = useState(Array(questions.length).fill(""));
   const [revealed, setRevealed] = useState(false);
-    const [username, setUsername] = useState("Gestalt");
-    const [poem, setPoem] = useState("Roses are red, violets are blue, I'm not great at poems, but hey, nice to meet you.");
-    const [avatarUrl, setAvatarUrl] = useState("");
+  const [username, setUsername] = useState("Gestalt");
+  const [poem, setPoem] = useState(
+    "Roses are red, violets are blue, I'm not great at poems, but hey, nice to meet you.",
+  );
+  const [avatarUrl, setAvatarUrl] = useState("");
   const current = questions[step];
 
   const handleAnswer = (value) => {
-  const updated = [...answers];
-  updated[step] = value;
-  setAnswers(updated);
-};
+    const updated = [...answers];
+    updated[step] = value;
+    setAnswers(updated);
+  };
 
-const handleNext = async () => {
-  if (!answers[step]) return;
+  const handleNext = async () => {
+    if (!answers[step]) return;
 
-  if (step === questions.length - 1) {
-    try {
-const payload = {
-  answers: answers.map((a ,i=0  ) => ({ id: i + 1, answer: a }))
-};
+    if (step === questions.length - 1) {
+      try {
+        const payload = {
+          answers: answers.map((a, i = 0) => ({ id: i + 1, answer: a })),
+        };
 
-
-      const data = await generateProfile(payload);
-      console.log("Profile generated:", data);
-      setUsername(data.username);
-      setPoem(data.poem);
-      setAvatarUrl(data.avatarUrl);
-      setRevealed(true);
-    } catch (err) {
-      console.error("Error generating profile:", err);
-      alert("Something went wrong. Please try again.");
+        const data = await generateProfile(payload);
+        console.log("Profile generated:", data);
+        setUsername(data.username);
+        setPoem(data.poem);
+        setAvatarUrl(data.avatarUrl);
+        setRevealed(true);
+      } catch (err) {
+        console.error("Error generating profile:", err);
+        alert("Something went wrong. Please try again.");
+      }
+    } else {
+      setStep(step + 1);
     }
-  } else {
-    setStep(step + 1);
-  }
-};
-
+  };
 
   return (
-    <div className="min-h-screen  bg-gradient-to-b
-       from-[#700912] via-[#c4505a] to-[#dd908c] flex items-center justify-center px-6">
+    <div
+      className="min-h-screen  bg-gradient-to-b
+       from-[#700912] via-[#c4505a] to-[#dd908c] flex items-center justify-center px-6"
+    >
       {!revealed ? (
         /* QUESTION FLOW */
         <div className="max-w-md w-full text-center transition-all duration-700">
@@ -152,30 +157,27 @@ const payload = {
             {current.question}
           </h2>
 
-{current.id === "5" ? (
-  <div className="flex gap-4 justify-center">
-    {["Male", "Female"].map(g => (
-      <button
-        key={g}
-        onClick={() => handleAnswer(g)}
-        className={`px-5 py-2 rounded-full ${
-          answers[step] === g ? "bg-[#af323f] text-white" : "bg-white"
-        }`}
-      >
-        {g}
-      </button>
-    ))}
-  </div>
-) : (
-  <WhisperInput
-    placeholder={current.placeholder}
-    value={answers[step]}
-    onChange={(val) => handleAnswer(val)}
-  />
-)}
-
-
-
+          {current.id === "5" ? (
+            <div className="flex gap-4 justify-center">
+              {["Male", "Female"].map((g) => (
+                <button
+                  key={g}
+                  onClick={() => handleAnswer(g)}
+                  className={`px-5 py-2 rounded-full ${
+                    answers[step] === g ? "bg-[#af323f] text-white" : "bg-white"
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <WhisperInput
+              placeholder={current.placeholder}
+              value={answers[step]}
+              onChange={(val) => handleAnswer(val)}
+            />
+          )}
 
           <button
             onClick={handleNext}
@@ -192,61 +194,82 @@ const payload = {
               active:scale-95
             "
           >
-            {step === questions.length - 1 ? "Unfold my profile ✨" : "Continue"}
+            {step === questions.length - 1
+              ? "Unfold my profile ✨"
+              : "Continue"}
           </button>
         </div>
       ) : (
-        /* ROYAL SCROLL REVEAL */
-<div
-  className="
-    paper
-    max-w-2xl
-    w-full
-    mt-6
-    mb-6
-    min-h-[80vh]
-    animate-[unfurl_1.2s_ease-out]
-    px-12
-    py-8
-    relative
-  "
-  style={{
-    backgroundImage: `
-      radial-gradient(
-        ellipse at center,
-        rgba(255,248,237,0.35) 0%,
-        rgba(255,248,237,0.45) 55%,
-        rgba(255,248,237,0.65) 75%,
-        rgba(255,248,237,0.45) 100%
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(255,248,237,0.15),
-        rgba(243,227,205,0.25)
-      ),
-      url(${multi_heart})
-    `,
-    backgroundSize: "cover, contain, 280px",
-    backgroundPosition: "center, center, center",
-    backgroundRepeat: "no-repeat, repeat, repeat , repeat",
-  }}
->
+        <div className="fixed inset-0 z-[100] overflow-hidden">
+          {/* 🔹 Blurred background */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
 
-  <h2 className="text-center text-3xl font-playfair italic text-[#5b2a2a] mb-10">
-{username}  </h2>
+          {/* 🔹 Centering wrapper */}
+          <div className="relative h-full flex items-center justify-center px-4">
+            {/* 🔹 Scroll container */}
+            <div
+              className="
+          relative z-10
+          w-full max-w-lg
+          max-h-[85vh]
+          rounded-3xl
+          shadow-2xl
+          flex flex-col
+          overflow-hidden
+          animate-[unfurl_1.2s_ease-out]
+        "
+              style={{
+                backgroundImage: `
+            radial-gradient(
+              ellipse at center,
+              rgba(255,248,237,0.9),
+              rgba(255,248,237,0.75)
+            ),
+            url(${multi_heart})
+          `,
+                backgroundSize: "cover, 220px",
+              }}
+            >
+              {/* Header */}
+              <div className="px-8 py-6 shrink-0 text-center">
+                <h2 className="text-3xl font-playfair italic text-[#5b2a2a]">
+                  {username}
+                </h2>
+              </div>
 
-  <div className="space-y-8 font-lora  text-[#4a2c2a]  font-lora italic p-2 text-center tracking-wide text-lg leading-[1.8]"> 
-  {poem}
-  </div>
+              <div className="h-px bg-[#5b2a2a]/20 mx-8" />
 
-  <p className="mt-12 text-center italic text-[#8c3037]">
-    ✨ This is how your presence feels ✨
-  </p>
-  <NavLink to="/app" className=" mt-8 text-center text-sm py-4 px-4 bg-[#b93d49] text-white rounded-lg  font-lora italic absolute right-2 bottom-2 hover:no-underline ">
-    Explore your matches
-  </NavLink>
-</div>
+              {/* 🔥 Scrollable poem */}
+              <div className="flex-1 overflow-y-auto px-10 py-6">
+                <p className="font-lora italic text-[#4a2c2a] leading-[1.9] tracking-wide whitespace-pre-line text-center">
+                  {poem}
+                </p>
 
+                <p className="mt-8 text-center italic text-[#8c3037]">
+                  ✨ This is how your presence feels ✨
+                </p>
+              </div>
+
+              {/* CTA */}
+              <div className="px-6 py-4 shrink-0 flex justify-center">
+                <NavLink
+                  to="/app"
+                  className="
+              text-sm
+              py-3 px-6
+              bg-[#b93d49]
+              text-white
+              rounded-xl
+              font-lora italic
+              hover:no-underline
+            "
+                >
+                  Explore your matches
+                </NavLink>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
