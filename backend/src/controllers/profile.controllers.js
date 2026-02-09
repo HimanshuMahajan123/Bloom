@@ -77,21 +77,21 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   /* ---------------- PROFILE GENERATION ---------------- */
 
   const prompt = `
-Write a romantic but natural dating profile for a college student using the answers below.
+  Write a romantic but natural dating profile for a college student using the answers below.
 
-Rules:
-- 150–200 words
-- warm and heartfelt, not cheesy
-- simple, everyday language
-- no fancy or dramatic metaphors
-- sound human, not AI-generated
-- do not mention questions, quizzes, or prompts
-- output only the final profile text
--no names 
+  Rules:
+  - 100-150 words only
+  - If the answers feel meaningless or random (spam) then no need to write 100-150 words , just write a simple profile which says something like "User is still discovering themselves and has not shared much about their personality yet."
+  - warm and heartfelt, not cheesy and simple, everyday language
+  - no fancy or dramatic metaphors
+  - sound human, not AI-generated
+  - do not mention questions, quizzes, or prompts
+  - output only the final profile text
+  - no names 
 
-Answers:
-${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
-`;
+  Answers:
+  ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+  `;
 
   let poem = "A mysterious romantic soul.";
 
@@ -350,7 +350,7 @@ const notificationsPanel = asyncHandler(async (req, res) => {
     );
 });
 
-const findPerfectMatches = async (userId , PERFECT_THRESHOLD ,TTL_MINUTES) => {
+const findPerfectMatches = async (userId, PERFECT_THRESHOLD, TTL_MINUTES) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -466,7 +466,7 @@ const findPerfectMatches = async (userId , PERFECT_THRESHOLD ,TTL_MINUTES) => {
   );
 
   if (!signalFiltered.length) {
-    return  "No signal candidates found";
+    return "No signal candidates found";
   }
 
   /* --------------------------------------------------
@@ -516,60 +516,62 @@ const findPerfectMatches = async (userId , PERFECT_THRESHOLD ,TTL_MINUTES) => {
      5️⃣ Insert signals atomically
   -------------------------------------------------- */
 
- /* --------------------------------------------------
+  /* --------------------------------------------------
    5️⃣ Insert signals atomically (TWO-WAY)
 -------------------------------------------------- */
 
-const expiresAt = new Date(Date.now() + TTL_MINUTES * 60 * 1000);
+  const expiresAt = new Date(Date.now() + TTL_MINUTES * 60 * 1000);
 
-await prisma.$transaction(
-  qualified.flatMap((q) => [
-    // me → them
-    prisma.signal.upsert({
-      where: {
-        fromUserId_toUserId: {
+  await prisma.$transaction(
+    qualified.flatMap((q) => [
+      // me → them
+      prisma.signal.upsert({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: userId,
+            toUserId: q.user.id,
+          },
+        },
+        update: {
+          score: q.score,
+          expiresAt,
+        },
+        create: {
           fromUserId: userId,
           toUserId: q.user.id,
+          score: q.score,
+          expiresAt,
+          source: "PERFECT_MATCH",
         },
-      },
-      update: {
-        score: q.score,
-        expiresAt,
-      },
-      create: {
-        fromUserId: userId,
-        toUserId: q.user.id,
-        score: q.score,
-        expiresAt,
-        source: "PERFECT_MATCH",
-      },
-    }),
+      }),
 
-    // them → me
-    prisma.signal.upsert({
-      where: {
-        fromUserId_toUserId: {
+      // them → me
+      prisma.signal.upsert({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: q.user.id,
+            toUserId: userId,
+          },
+        },
+        update: {
+          score: q.score,
+          expiresAt,
+        },
+        create: {
           fromUserId: q.user.id,
           toUserId: userId,
+          score: q.score,
+          expiresAt,
+          source: "PERFECT_MATCH",
         },
-      },
-      update: {
-        score: q.score,
-        expiresAt,
-      },
-      create: {
-        fromUserId: q.user.id,
-        toUserId: userId,
-        score: q.score,
-        expiresAt,
-        source: "PERFECT_MATCH",
-      },
-    }),
-  ])
-);
+      }),
+    ]),
+  );
 
-
-  console.log(`Perfect matches for user ${userId}:`, qualified.map((q) => q.user.id));  
+  console.log(
+    `Perfect matches for user ${userId}:`,
+    qualified.map((q) => q.user.id),
+  );
 };
 const matchInfo = asyncHandler(async (req, res) => {
   const userId = req.user.id;
@@ -604,9 +606,7 @@ const matchInfo = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  return res.json(
-    new ApiResponse(200, {}, "Match info fetched successfully"),
-  );
+  return res.json(new ApiResponse(200, {}, "Match info fetched successfully"));
 });
 
 export {
