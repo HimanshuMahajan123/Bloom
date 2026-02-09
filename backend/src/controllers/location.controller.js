@@ -241,16 +241,15 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
 
   return res.json(
     new ApiResponse(200, {
-      signals: [
-        finalSignals.map((s) => ({
-          id: s.fromUser.id,
-          username: s.fromUser.username,
-          avatarUrl: s.fromUser.avatarUrl,
-          poem: s.fromUser.poem,
-          source: s.source,
-          score: s.score,
-        })),
-      ],
+     signals: finalSignals.map((s) => ({
+  id: s.fromUser.id,
+  username: s.fromUser.username,
+  avatarUrl: s.fromUser.avatarUrl,
+  poem: s.fromUser.poem,
+  source: s.source,
+  score: s.score,
+})),
+
     }),
   );
 });
