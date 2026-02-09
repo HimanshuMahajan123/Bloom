@@ -21,8 +21,6 @@ const truncateWords = (text, limit = 80) => {
   return words.length <= limit ? text : words.slice(0, limit).join(" ") + "…";
 };
 
-
-
 /* ---------- FeedCard ---------- */
 const FeedCard = ({ item, onExpand }) => (
   <div
@@ -62,11 +60,9 @@ export default function Dashboard() {
   const nearbyCheckIntervalRef = useRef(null);
   const [isTouch, setIsTouch] = useState(false);
 
-useEffect(() => {
-  setIsTouch(
-    "ontouchstart" in window || navigator.maxTouchPoints > 0
-  );
-}, []);
+  useEffect(() => {
+    setIsTouch("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  }, []);
 
   /* ---------- LOCATION ---------- */
   useEffect(() => {
@@ -77,46 +73,41 @@ useEffect(() => {
     nearbyCheckIntervalRef.current = setInterval(async () => {
       const res = await checkNearbyUsers();
       // console.log("Nearby check result:", res);
-setSignals(prev =>
-  res?.signals && res.signals.length > 0
-    ? res.signals
-    : prev
-);
-    }, 30000); // every 30 seconds
+      setSignals((prev) =>
+        res?.signals && res.signals.length > 0 ? res.signals : prev,
+      );
+    }, 15000); // every 15 seconds
 
     return () => clearInterval(nearbyCheckIntervalRef.current);
   }, []);
 
   /* ---------- FEED ---------- */
   useEffect(() => {
-    fetchHome().then((res) =>
-      setFeedData(res?.data?.items || [])
-    );
+    fetchHome().then((res) => setFeedData(res?.data?.items || []));
   }, []);
 
   const touchStartX = useRef(0);
-const touchEndX = useRef(0);
+  const touchEndX = useRef(0);
 
-const handleTouchStart = (e) => {
-  touchStartX.current = e.touches[0].clientX;
-};
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
 
-const handleTouchEnd = () => {
-  const diff = touchStartX.current - touchEndX.current;
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
 
-  if (Math.abs(diff) < 60) return; // ignore small swipes
+    if (Math.abs(diff) < 60) return; // ignore small swipes
 
-  if (diff > 0) {
-    handleSwipe("left");
-  } else {
-    handleSwipe("right");
-  }
-};
+    if (diff > 0) {
+      handleSwipe("left");
+    } else {
+      handleSwipe("right");
+    }
+  };
 
-const handleTouchMove = (e) => {
-  touchEndX.current = e.touches[0].clientX;
-};
-
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
 
   /* ---------- NOTIFICATIONS ---------- */
   const openNotifications = async () => {
@@ -147,8 +138,7 @@ const handleTouchMove = (e) => {
   };
 
   return (
-
-      <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
+    <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
       {/* Ambient hearts & balloons */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
         {[...Array(150)].map((_, i) => (
@@ -199,57 +189,50 @@ const handleTouchMove = (e) => {
       <div className="flex flex-col items-center relative z-10">
         {feedData.map((item) => (
           <FeedCard
-  key={item.id}
-  item={item}
-  onExpand={(item) =>
-    setExpandedProfile({ ...item, source: "feed" })
-  }
-/>
-
+            key={item.id}
+            item={item}
+            onExpand={(item) => setExpandedProfile({ ...item, source: "feed" })}
+          />
         ))}
       </div>
-{/* ---------- Expanded Cards ---------- */}
-{/* Feed → Read-only */}
-{expandedProfile?.source === "feed" && (
-  <ExpandedFeedCard
-    profile={expandedProfile}
-    onClose={() => setExpandedProfile(null)}
-  />
-)}
+      {/* ---------- Expanded Cards ---------- */}
+      {/* Feed → Read-only */}
+      {expandedProfile?.source === "feed" && (
+        <ExpandedFeedCard
+          profile={expandedProfile}
+          onClose={() => setExpandedProfile(null)}
+        />
+      )}
 
-{/* Signals & Likes → Swipe */}
-{expandedProfile &&
-  (expandedProfile.source === "signals" ||
-    expandedProfile.source === "likes") && (
-    <SwipeCard
-      expandedProfile={expandedProfile}
-      swipeClass={swipeClass}
-      isTouch={isTouch}
-      handleTouchStart={handleTouchStart}
-      handleTouchMove={handleTouchMove}
-      handleTouchEnd={handleTouchEnd}
-      handleSwipe={handleSwipe}
-      onClose={() => setExpandedProfile(null)}
-    />
-)}
+      {/* Signals & Likes → Swipe */}
+      {expandedProfile &&
+        (expandedProfile.source === "signals" ||
+          expandedProfile.source === "likes") && (
+          <SwipeCard
+            expandedProfile={expandedProfile}
+            swipeClass={swipeClass}
+            isTouch={isTouch}
+            handleTouchStart={handleTouchStart}
+            handleTouchMove={handleTouchMove}
+            handleTouchEnd={handleTouchEnd}
+            handleSwipe={handleSwipe}
+            onClose={() => setExpandedProfile(null)}
+          />
+        )}
 
-{/* Resonance → Reveal */}
-{expandedProfile?.source === "resonance" && (
-  <RevealCard
-    expandedProfile={expandedProfile}
-    onClose={() => setExpandedProfile(null)}
-  />
-)}
+      {/* Resonance → Reveal */}
+      {expandedProfile?.source === "resonance" && (
+        <RevealCard
+          expandedProfile={expandedProfile}
+          onClose={() => setExpandedProfile(null)}
+        />
+      )}
 
-
- 
-
-
-    {/* Notifications Panel */}
-{notifPanelOpen && (
-  <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
-<div
-  className="
+      {/* Notifications Panel */}
+      {notifPanelOpen && (
+        <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
+          <div
+            className="
     w-full max-w-md
     bg-white/95
     rounded-3xl
@@ -257,59 +240,59 @@ const handleTouchMove = (e) => {
     flex flex-col
     max-h-[85vh]
   "
->
-
-      {/* Header */}
-<div className="flex items-start justify-between px-4 py-4 shrink-0">
-        <div className="flex gap-2">
-          {["signals", "likes", "resonance"].map((t) => (
-            <button
-              key={t}
-              className={`
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between px-4 py-4 shrink-0">
+              <div className="flex gap-2">
+                {["signals", "likes", "resonance"].map((t) => (
+                  <button
+                    key={t}
+                    className={`
                 px-3 py-2 rounded-full text-sm capitalize transition
-                ${notifTab === t
-                  ? "bg-[#f9e8e8] text-[#5b2a2a]"
-                  : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"}
+                ${
+                  notifTab === t
+                    ? "bg-[#f9e8e8] text-[#5b2a2a]"
+                    : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"
+                }
               `}
-              onClick={() => setNotifTab(t)}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+                    onClick={() => setNotifTab(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
 
-        <button
-          onClick={() => setNotifPanelOpen(false)}
-          className="p-2 rounded-full hover:bg-black/5 transition"
-        >
-          <X size={18} />
-        </button>
-      </div>
+              <button
+                onClick={() => setNotifPanelOpen(false)}
+                className="p-2 rounded-full hover:bg-black/5 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-      {/* Content */}
-<div className="flex-1 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
-        {(notifTab === "signals"
-          ? signals
-          : notifTab === "likes"
-          ? likes
-          : resonance
-        ).length ? (
-          (notifTab === "signals"
-            ? signals
-            : notifTab === "likes"
-            ? likes
-            : resonance
-          ).map((s) => (
-            <button
-              key={notifTab+s.id}
-              onClick={() => {
-  setExpandedProfile({
-    ...s,
-    source: notifTab, // "signals" | "likes" | "resonance"
-  });
-}}
-
-              className="
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
+              {(notifTab === "signals"
+                ? signals
+                : notifTab === "likes"
+                  ? likes
+                  : resonance
+              ).length ? (
+                (notifTab === "signals"
+                  ? signals
+                  : notifTab === "likes"
+                    ? likes
+                    : resonance
+                ).map((s) => (
+                  <button
+                    key={notifTab + s.id}
+                    onClick={() => {
+                      setExpandedProfile({
+                        ...s,
+                        source: notifTab, // "signals" | "likes" | "resonance"
+                      });
+                    }}
+                    className="
                 w-full text-left rounded-2xl px-4 py-4
                
                 hover:bg-[#fdeeee]
@@ -317,35 +300,37 @@ const handleTouchMove = (e) => {
                 shadow-sm
                 flex flex-col gap-1
               "
-              style={{
-                backgroundColor: s.source=="PROXIMITY"?"#fff7f6":"rgba(187,151,35,1)"
-              }}
-            >
-              {/* Username */}
-              <div className="font-playfair italic text-base text-[#5b2a2a] truncate">
-                {s.username || "Someone nearby"}
-              </div>
+                    style={{
+                      backgroundColor:
+                        (s?.source || "PROXIMITY") === "PROXIMITY"
+                          ? "#fff7f6"
+                          : "rgba(187,151,35,1)",
+                    }}
+                  >
+                    {/* Username */}
+                    <div className="font-playfair italic text-base text-[#5b2a2a] truncate">
+                      {s.username || "Someone nearby"}
+                    </div>
 
-              {/* Subtitle */}
-              <div className="font-lora text-xs text-[#5b2a2a]/70">
-                {notifTab === "signals" && "A signal crossed your path"}
-                {notifTab === "likes" && "They felt a spark"}
-                {notifTab === "resonance" && "A mutual bloom"}
-              </div>
-            </button>
-          ))
-        ) : (
-          <div className="text-sm text-center py-10 text-[#5b2a2a]/60">
-            {notifTab === "signals" && "No signals nearby right now."}
-            {notifTab === "likes" && "No sparks yet."}
-            {notifTab === "resonance" && "No blooms yet."}
+                    {/* Subtitle */}
+                    <div className="font-lora text-xs text-[#5b2a2a]/70">
+                      {notifTab === "signals" && "A signal crossed your path"}
+                      {notifTab === "likes" && "They felt a spark"}
+                      {notifTab === "resonance" && "A mutual bloom"}
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="text-sm text-center py-10 text-[#5b2a2a]/60">
+                  {notifTab === "signals" && "No signals nearby right now."}
+                  {notifTab === "likes" && "No sparks yet."}
+                  {notifTab === "resonance" && "No blooms yet."}
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
+        </div>
+      )}
     </div>
   );
 }
