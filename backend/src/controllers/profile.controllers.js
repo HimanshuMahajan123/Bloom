@@ -77,11 +77,11 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   /* ---------------- PROFILE GENERATION ---------------- */
 
   const prompt = `
-  Write a romantic but natural dating profile for a college student using the answers below.
+  Write a romantic but natural dating profile for a college student using the answers below. Only Use the information from the answers provided.Do not add any information on your own.
 
   Rules:
   - 100-150 words only
-  - If the answers feel meaningless or random (spam) then no need to write 100-150 words , just write a simple profile which says something like "User is still discovering themselves and has not shared much about their personality yet."
+  - If the answers feel meaningless,vulgar or random (spam) then no need to write 100-150 words , just write a simple profile which says something like "User is still discovering themselves and has not shared much about their personality yet."
   - warm and heartfelt, not cheesy and simple, everyday language
   - no fancy or dramatic metaphors
   - sound human, not AI-generated
