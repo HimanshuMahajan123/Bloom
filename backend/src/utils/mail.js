@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
 //sending email is always an async function
 const sendEmail = async (options) => {
   const mail = {
-    from: "bloom@skillpass.org",
+    from: "mail@bloomworld.life",
     to: options.email,
     subject: options.subject,
     html: `
