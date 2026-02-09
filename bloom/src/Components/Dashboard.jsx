@@ -229,7 +229,6 @@ const handleTouchMove = (e) => {
       handleTouchMove={handleTouchMove}
       handleTouchEnd={handleTouchEnd}
       handleSwipe={handleSwipe}
-      source={expandedProfile.source}
       onClose={() => setExpandedProfile(null)}
     />
 )}
@@ -303,12 +302,15 @@ const handleTouchMove = (e) => {
 
               className="
                 w-full text-left rounded-2xl px-4 py-4
-                bg-[#fff7f6]
+               
                 hover:bg-[#fdeeee]
                 transition
                 shadow-sm
                 flex flex-col gap-1
               "
+              style={{
+                backgroundColor: s.source=="PROXIMITY"?"#fff7f6":"rgba(187,151,35,1)"
+              }}
             >
               {/* Username */}
               <div className="font-playfair italic text-base text-[#5b2a2a] truncate">
