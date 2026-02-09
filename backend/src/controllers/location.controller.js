@@ -1,5 +1,5 @@
 const MAX_SIGNALS = 20;
-
+CENTRAL_THRESHOLD = 0.35;
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
