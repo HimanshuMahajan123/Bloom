@@ -32,42 +32,45 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
 
   /* 1️⃣ Fetch inbox signals ONLY */
   //select user details from USER and signal details from SIGNAL where toUserId = userId and expiresAt > now order by createdAt desc limit MAX_SIGNALS
-const existingSignals = await prisma.signal.findMany({
-  where: {
-    toUserId: userId,
-    expiresAt: { gt: now },
-  },
-  select: {
-    score: true,
-    source: true,
-    fromUser: {
-      select: {
-        id: true,
-        username: true,
-        avatarUrl: true,
-        poem: true,
+  const existingSignals = await prisma.signal.findMany({
+    where: {
+      toUserId: userId,
+      expiresAt: { gt: now },
+    },
+    select: {
+      score: true,
+      source: true,
+      fromUser: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          poem: true,
+        },
       },
     },
-  },
-  orderBy: { createdAt: "desc" },
-  take: MAX_SIGNALS,
-});
-
+    orderBy: { createdAt: "desc" },
+    take: MAX_SIGNALS,
+  });
 
   /* 2️⃣ Nearby users */
   const nearby = getNearbyUsers(userId, 50);
   if (!nearby.length) {
     return res.json(
-      new ApiResponse(200, {
-        signals: existingSignals.map((s) => ({
-          id: s.fromUser.id,
-          username: s.fromUser.username,
-          avatarUrl: s.fromUser.avatarUrl,
-          poem: s.fromUser.poem,
-          score: s.score,
-          source: s.source,
-        })),
-      }),
+      new ApiResponse(
+        200,
+        {
+          signals: existingSignals.map((s) => ({
+            id: s.fromUser.id,
+            username: s.fromUser.username,
+            avatarUrl: s.fromUser.avatarUrl,
+            poem: s.fromUser.poem,
+            score: s.score,
+            source: s.source,
+          })),
+        },
+        "no nearby users found",
+      ),
     );
   }
 
@@ -130,15 +133,15 @@ const existingSignals = await prisma.signal.findMany({
   /* 6️⃣ Score via FAISS */
   const scored = await Promise.allSettled(
     users.map((u) => {
-    let maleRoll, femaleRoll;
+      let maleRoll, femaleRoll;
 
-if (myGender === "MALE") {
-  maleRoll = myRoll;
-  femaleRoll = u.rollNumber;
-} else {
-  maleRoll = u.rollNumber;
-  femaleRoll = myRoll;
-}
+      if (myGender === "MALE") {
+        maleRoll = myRoll;
+        femaleRoll = u.rollNumber;
+      } else {
+        maleRoll = u.rollNumber;
+        femaleRoll = myRoll;
+      }
 
       return axios
         .get(process.env.FAISS_SERVICE_URL + "/score", {
@@ -156,65 +159,64 @@ if (myGender === "MALE") {
   );
 
   const newSignals = [];
-const ops = [];
+  const ops = [];
 
-for (const result of scored) {
-  if (result.status !== "fulfilled") continue;
-  if (result.value.score < CENTRAL_THRESHOLD) continue;
+  for (const result of scored) {
+    if (result.status !== "fulfilled") continue;
+    if (result.value.score < CENTRAL_THRESHOLD) continue;
 
-  const { user, score } = result.value;
-  const expiresAt = new Date(Date.now() + 86400000);
+    const { user, score } = result.value;
+    const expiresAt = new Date(Date.now() + 86400000);
 
-  ops.push(
-    prisma.signal.upsert({
-      where: {
-        fromUserId_toUserId: {
+    ops.push(
+      prisma.signal.upsert({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: user.id,
+            toUserId: userId,
+          },
+        },
+        update: { expiresAt, score },
+        create: {
           fromUserId: user.id,
           toUserId: userId,
+          score,
+          source: "PROXIMITY",
+          expiresAt,
         },
-      },
-      update: { expiresAt, score },
-      create: {
-        fromUserId: user.id,
-        toUserId: userId,
-        score,
-        source: "PROXIMITY",
-        expiresAt,
-      },
-    }),
-    prisma.signal.upsert({
-      where: {
-        fromUserId_toUserId: {
+      }),
+      prisma.signal.upsert({
+        where: {
+          fromUserId_toUserId: {
+            fromUserId: userId,
+            toUserId: user.id,
+          },
+        },
+        update: { expiresAt, score },
+        create: {
           fromUserId: userId,
           toUserId: user.id,
+          score,
+          source: "PROXIMITY",
+          expiresAt,
         },
-      },
-      update: { expiresAt, score },
-      create: {
-        fromUserId: userId,
-        toUserId: user.id,
-        score,
-        source: "PROXIMITY",
-        expiresAt,
-      },
-    }),
-  );
+      }),
+    );
 
-  newSignals.push({
-    id: user.id,
-    username: user.username,
-    avatarUrl: user.avatarUrl,
-    poem: user.poem,
-    score,
-    source: "PROXIMITY",
-  });
-  if (existingSignals.length + newSignals.length >= MAX_SIGNALS) break;
-}
+    newSignals.push({
+      id: user.id,
+      username: user.username,
+      avatarUrl: user.avatarUrl,
+      poem: user.poem,
+      score,
+      source: "PROXIMITY",
+    });
+    if (existingSignals.length + newSignals.length >= MAX_SIGNALS) break;
+  }
 
-if (ops.length) {
-  await prisma.$transaction(ops);
-}
-
+  if (ops.length) {
+    await prisma.$transaction(ops);
+  }
 
   return res.json(
     new ApiResponse(200, {
