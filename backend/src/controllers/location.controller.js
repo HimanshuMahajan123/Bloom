@@ -217,11 +217,32 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   if (ops.length) {
     await prisma.$transaction(ops);
   }
+  const finalSignals = await prisma.signal.findMany({
+  where: {
+    toUserId: userId,
+    expiresAt: { gt: new Date() },
+  },
+  select: {
+    score: true,
+    source: true,
+    fromUser: {
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+        poem: true,
+      },
+    },
+  },
+  orderBy: { createdAt: "desc" },
+  take: MAX_SIGNALS,
+});
+
 
   return res.json(
     new ApiResponse(200, {
       signals: [
-        ...existingSignals.map((s) => ({
+        finalSignals.map((s) => ({
           id: s.fromUser.id,
           username: s.fromUser.username,
           avatarUrl: s.fromUser.avatarUrl,
@@ -229,7 +250,6 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
           source: s.source,
           score: s.score,
         })),
-        ...newSignals,
       ],
     }),
   );
