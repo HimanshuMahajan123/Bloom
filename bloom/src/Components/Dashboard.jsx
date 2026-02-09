@@ -63,22 +63,49 @@ export default function Dashboard() {
   useEffect(() => {
     setIsTouch("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
-
-  /* ---------- LOCATION ---------- */
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition((pos) => {
-      updateUserLocation(pos.coords.latitude, pos.coords.longitude);
-    });
+    if (!navigator.geolocation) return;
 
-    nearbyCheckIntervalRef.current = setInterval(async () => {
-      const res = await checkNearbyUsers();
-      // console.log("Nearby check result:", res);
-      setSignals((prev) =>
-        res?.signals && res.signals.length > 0 ? res.signals : prev,
+    // ---- send location ----
+    const sendLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          updateUserLocation(pos.coords.latitude, pos.coords.longitude);
+        },
+        (err) => {
+          console.error("Location error:", err);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 10_000,
+          timeout: 10_000,
+        },
       );
-    }, 15000); // every 15 seconds
+    };
 
-    return () => clearInterval(nearbyCheckIntervalRef.current);
+    // run once immediately
+    sendLocation();
+
+    // every 60 seconds
+    const locationInterval = setInterval(sendLocation, 60_000);
+
+    // ---- check nearby every 15s ----
+    nearbyCheckIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await checkNearbyUsers();
+
+        setSignals((prev) =>
+          res?.signals && res.signals.length > 0 ? res.signals : prev,
+        );
+      } catch (e) {
+        console.error("Nearby check failed:", e);
+      }
+    }, 15_000);
+
+    return () => {
+      clearInterval(locationInterval);
+      clearInterval(nearbyCheckIntervalRef.current);
+    };
   }, []);
 
   /* ---------- FEED ---------- */
