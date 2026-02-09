@@ -350,13 +350,22 @@ const notificationsPanel = asyncHandler(async (req, res) => {
     );
 });
 
-const findPerfectMatches = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const myGender = req.user.gender;
-  const myRoll = req.user.rollNumber;
+const findPerfectMatches = async (userId , PERFECT_THRESHOLD ,TTL_MINUTES) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      gender: true,
+      rollNumber: true,
+    },
+  });
 
-  const PERFECT_THRESHOLD = 0.7;
-  const TTL_MINUTES = 60 * 24; // 24 hours
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const myGender = user.gender;
+  const myRoll = user.rollNumber;
 
   /* --------------------------------------------------
   Fetch all eligible opposite-gender users
@@ -378,7 +387,7 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
   });
 
   if (!allCandidates.length) {
-    return res.json(new ApiResponse(200, { matches: [] }));
+    throw new Error("No candidates found");
   }
 
   const candidateIds = allCandidates.map((u) => u.id);
@@ -409,7 +418,7 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
   const interactionFiltered = allCandidates.filter((u) => !blocked.has(u.id));
 
   if (!interactionFiltered.length) {
-    return res.json(new ApiResponse(200, { matches: [] }));
+    throw new Error("No interaction candidates found");
   }
 
   const interactionIds = interactionFiltered.map((u) => u.id);
@@ -457,7 +466,7 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
   );
 
   if (!signalFiltered.length) {
-    return res.json(new ApiResponse(200, { matches: [] }));
+    return  "No signal candidates found";
   }
 
   /* --------------------------------------------------
@@ -500,44 +509,68 @@ const findPerfectMatches = asyncHandler(async (req, res) => {
   }
 
   if (!qualified.length) {
-    return res.json(new ApiResponse(200, { matches: [] }));
+    throw new Error("No qualified candidates found");
   }
 
   /* --------------------------------------------------
      5️⃣ Insert signals atomically
   -------------------------------------------------- */
 
-  const expiresAt = new Date(Date.now() + TTL_MINUTES * 60 * 1000);
+ /* --------------------------------------------------
+   5️⃣ Insert signals atomically (TWO-WAY)
+-------------------------------------------------- */
 
-  await prisma.$transaction(
-    qualified.map((q) =>
-      prisma.signal.create({
-        data: {
+const expiresAt = new Date(Date.now() + TTL_MINUTES * 60 * 1000);
+
+await prisma.$transaction(
+  qualified.flatMap((q) => [
+    // me → them
+    prisma.signal.upsert({
+      where: {
+        fromUserId_toUserId: {
           fromUserId: userId,
           toUserId: q.user.id,
-          score: q.score,
-          expiresAt,
-          source: "PROXIMITY",
         },
-      }),
-    ),
-  );
-
-  /* --------------------------------------------------
-     6️⃣ Response
-  -------------------------------------------------- */
-
-  return res.json(
-    new ApiResponse(200, {
-      matches: qualified.map((q) => ({
-        id: q.user.id,
-        username: q.user.username,
-        avatarUrl: q.user.avatarUrl,
+      },
+      update: {
         score: q.score,
-      })),
+        expiresAt,
+      },
+      create: {
+        fromUserId: userId,
+        toUserId: q.user.id,
+        score: q.score,
+        expiresAt,
+        source: "PERFECT_MATCH",
+      },
     }),
-  );
-});
+
+    // them → me
+    prisma.signal.upsert({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: q.user.id,
+          toUserId: userId,
+        },
+      },
+      update: {
+        score: q.score,
+        expiresAt,
+      },
+      create: {
+        fromUserId: q.user.id,
+        toUserId: userId,
+        score: q.score,
+        expiresAt,
+        source: "PERFECT_MATCH",
+      },
+    }),
+  ])
+);
+
+
+  console.log(`Perfect matches for user ${userId}:`, qualified.map((q) => q.user.id));  
+};
 const matchInfo = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const otherUserId = req.params.userId;
@@ -572,7 +605,7 @@ const matchInfo = asyncHandler(async (req, res) => {
   }
 
   return res.json(
-    new ApiResponse(200, otherUser, "Match info fetched successfully"),
+    new ApiResponse(200, {}, "Match info fetched successfully"),
   );
 });
 

@@ -229,6 +229,7 @@ const handleTouchMove = (e) => {
       handleTouchMove={handleTouchMove}
       handleTouchEnd={handleTouchEnd}
       handleSwipe={handleSwipe}
+      source={expandedProfile.source}
       onClose={() => setExpandedProfile(null)}
     />
 )}

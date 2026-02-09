@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import locationRoutes from "./routes/location.routes.js";
 import matchRoutes from "./routes/match.routes.js";
+import "./jobs/perfectMatchjob.js";
 const app = express();
 
 app.use(express.json());
