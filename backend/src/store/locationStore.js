@@ -1,6 +1,5 @@
 // locationStore.js
 
-const CELL_SIZE = 0.0005; // ~50 meters
 
 // cellKey -> Set<userId>
 const spatialGrid = new Map();
@@ -13,33 +12,32 @@ const userLocation = new Map();
 
 /* ---------- helpers ---------- */
 
+const CELL_SIZE = 0.0005;
+
 function getCellKey(lat, lng) {
-  const latSize = CELL_SIZE;
-  const lngSize = CELL_SIZE / Math.cos((lat * Math.PI) / 180);
-
-  const x = Math.floor(lat / latSize);
-  const y = Math.floor(lng / lngSize);
-
-  return `${x}:${y}`;
+  return `${Math.floor(lat / CELL_SIZE)}:${Math.floor(lng / CELL_SIZE)}`;
 }
+
+
 function movedSignificantly(oldLoc, newLat, newLng, threshold = 10) {
   if (!oldLoc) return true;
   const d = distanceMeters(oldLoc.lat, oldLoc.lng, newLat, newLng);
   return d >= threshold;
 }
 
-
-function getNeighborCells(cellKey) {
+function getNeighborCells(cellKey, radiusMeters) {
   const [x, y] = cellKey.split(":").map(Number);
+  const range = Math.ceil(radiusMeters / 55);
   const cells = [];
 
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dy = -1; dy <= 1; dy++) {
+  for (let dx = -range; dx <= range; dx++) {
+    for (let dy = -range; dy <= range; dy++) {
       cells.push(`${x + dx}:${y + dy}`);
     }
   }
   return cells;
 }
+
 
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -60,10 +58,11 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 export function updateUserLocation(userId, lat, lng) {
   console.log(`Updating location for user ${userId}: (${lat}, ${lng})`);
   const prev = userLocation.get(userId);
-  if (prev && !movedSignificantly(prev, lat, lng)) {
-    console.log(`User ${userId} has not moved significantly. Skipping update.`);
-    return;
-  }
+if (prev && !movedSignificantly(prev, lat, lng)) {
+  userLocation.set(userId, { ...prev, updatedAt: Date.now() });
+  return;
+}
+
   const newCell = getCellKey(lat, lng);
   const oldCell = userCellIndex.get(userId);
 
@@ -97,7 +96,7 @@ export function getNearbyUsers(userId, radius = 50) {
   console.log(`User ${userId} is in cell ${cellKey}`);
   const candidates = new Set();
 
-  for (const neighbor of getNeighborCells(cellKey)) {
+  for (const neighbor of getNeighborCells(cellKey , radius)) {
     const users = spatialGrid.get(neighbor);
     if (!users) continue;
     for (const uid of users) {
