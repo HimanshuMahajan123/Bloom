@@ -9,16 +9,22 @@ import axios from "axios";
 import { updateUserLocation, getNearbyUsers } from "../store/locationStore.js";
 
 /* ---------------- UPDATE LOCATION ---------------- */
-
 export const updateLocation = asyncHandler(async (req, res) => {
   const { latitude, longitude } = req.body;
   const userId = req.user.id;
+  const tag = `[LOC-API:${userId.slice(0, 6)}]`;
 
   if (typeof latitude !== "number" || typeof longitude !== "number") {
+    console.log(`${tag} invalid coords`, { latitude, longitude });
     throw new ApiError(400, "Invalid coordinates");
   }
 
   updateUserLocation(userId, latitude, longitude);
+
+  console.log(
+    `${tag} updated → lat=${latitude.toFixed(6)} lng=${longitude.toFixed(6)}`,
+  );
+
   return res.status(200).json(new ApiResponse(200, "Location updated"));
 });
 
@@ -29,9 +35,11 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   const myGender = req.user.gender;
   const myRoll = req.user.rollNumber;
   const now = new Date();
+  const tag = `[SIGNALS:${userId.slice(0, 6)}]`;
 
-  /* 1️⃣ Fetch inbox signals ONLY */
-  //select user details from USER and signal details from SIGNAL where toUserId = userId and expiresAt > now order by createdAt desc limit MAX_SIGNALS
+  console.log(`${tag} START`);
+
+  /* 1️⃣ Existing inbox signals */
   const existingSignals = await prisma.signal.findMany({
     where: {
       toUserId: userId,
@@ -53,9 +61,17 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     take: MAX_SIGNALS,
   });
 
+  console.log(
+    `${tag} existing inbox signals = ${existingSignals.length}`,
+  );
+
   /* 2️⃣ Nearby users */
   const nearby = getNearbyUsers(userId, 600);
+
+  console.log(`${tag} nearby users`, nearby.map((u) => u.slice(0, 6)));
+
   if (!nearby.length) {
+    console.log(`${tag} EXIT → no nearby users`);
     return res.json(
       new ApiResponse(
         200,
@@ -74,7 +90,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     );
   }
 
-  /* 3️⃣ Block users with any interaction */
+  /* 3️⃣ Interaction block */
   const interactions = await prisma.userInteraction.findMany({
     where: {
       OR: [
@@ -91,14 +107,20 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     blocked.add(i.toUserId);
   });
 
-  /* 4️⃣ Remove already-signaled users */
-  // const alreadySignaled = new Set(existingSignals.map((s) => s.fromUserId));
+  console.log(`${tag} blocked users`, [...blocked].map((u) => u.slice(0, 6)));
 
+  /* 4️⃣ Candidate filtering */
   const candidates = nearby.filter(
     (uid) => uid !== userId && !blocked.has(uid),
   );
 
+  console.log(
+    `${tag} after block filter`,
+    candidates.map((u) => u.slice(0, 6)),
+  );
+
   if (!candidates.length) {
+    console.log(`${tag} EXIT → no candidates after filtering`);
     return res.json(
       new ApiResponse(200, {
         signals: existingSignals.map((s) => ({
@@ -130,7 +152,12 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
     },
   });
 
-  /* 6️⃣ Score via FAISS */
+  console.log(
+    `${tag} eligible users`,
+    users.map((u) => u.id.slice(0, 6)),
+  );
+
+  /* 6️⃣ FAISS scoring */
   const scored = await Promise.allSettled(
     users.map((u) => {
       let maleRoll, femaleRoll;
@@ -145,16 +172,22 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
 
       return axios
         .get(process.env.FAISS_SERVICE_URL + "/score", {
-          params: {
-            maleRollNo: maleRoll,
-            femaleRollNo: femaleRoll,
-          },
+          params: { maleRollNo: maleRoll, femaleRollNo: femaleRoll },
           timeout: 1500,
         })
-        .then((r) => ({
-          user: u,
-          score: Number(r.data?.score || 0),
-        }));
+        .then((r) => {
+          const score = Number(r.data?.score || 0);
+          console.log(
+            `${tag} FAISS score → user=${u.id.slice(0, 6)} score=${score}`,
+          );
+          return { user: u, score };
+        })
+        .catch((err) => {
+          console.log(
+            `${tag} FAISS FAILED → user=${u.id.slice(0, 6)} err=${err.message}`,
+          );
+          throw err;
+        });
     }),
   );
 
@@ -163,7 +196,15 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
 
   for (const result of scored) {
     if (result.status !== "fulfilled") continue;
-    if (result.value.score < CENTRAL_THRESHOLD) continue;
+    if (result.value.score < CENTRAL_THRESHOLD) {
+      console.log(
+        `${tag} DROP → low score user=${result.value.user.id.slice(
+          0,
+          6,
+        )} score=${result.value.score}`,
+      );
+      continue;
+    }
 
     const { user, score } = result.value;
     const expiresAt = new Date(Date.now() + 86400000);
@@ -211,45 +252,61 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
       score,
       source: "PROXIMITY",
     });
-    if (existingSignals.length + newSignals.length >= MAX_SIGNALS) break;
   }
+
+  console.log(
+    `${tag} new signals generated`,
+    newSignals.map((s) => ({
+      id: s.id.slice(0, 6),
+      score: s.score,
+    })),
+  );
 
   if (ops.length) {
     await prisma.$transaction(ops);
   }
+
   const finalSignals = await prisma.signal.findMany({
-  where: {
-    toUserId: userId,
-    expiresAt: { gt: new Date() },
-  },
-  select: {
-    score: true,
-    source: true,
-    fromUser: {
-      select: {
-        id: true,
-        username: true,
-        avatarUrl: true,
-        poem: true,
+    where: {
+      toUserId: userId,
+      expiresAt: { gt: new Date() },
+    },
+    select: {
+      score: true,
+      source: true,
+      fromUser: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          poem: true,
+        },
       },
     },
-  },
-  orderBy: { createdAt: "desc" },
-  take: MAX_SIGNALS,
-});
+    orderBy: { createdAt: "desc" },
+    take: MAX_SIGNALS,
+  });
 
+  console.log(
+    `${tag} FINAL RESPONSE`,
+    finalSignals.map((s) => ({
+      id: s.fromUser.id.slice(0, 6),
+      score: s.score,
+    })),
+  );
+
+  console.log(`${tag} END`);
 
   return res.json(
     new ApiResponse(200, {
-     signals: finalSignals.map((s) => ({
-  id: s.fromUser.id,
-  username: s.fromUser.username,
-  avatarUrl: s.fromUser.avatarUrl,
-  poem: s.fromUser.poem,
-  source: s.source,
-  score: s.score,
-})),
-
+      signals: finalSignals.map((s) => ({
+        id: s.fromUser.id,
+        username: s.fromUser.username,
+        avatarUrl: s.fromUser.avatarUrl,
+        poem: s.fromUser.poem,
+        source: s.source,
+        score: s.score,
+      })),
     }),
   );
 });
