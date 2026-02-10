@@ -269,7 +269,7 @@ export default function Dashboard() {
   rounded-full
   p-0.5
 ">
-        <NavLink to="/profile" className="flex items-center gap-3">
+        <NavLink to="/profile" className="flex items-center gap-3 outline-none">
           <img
             src={user?.avatarUrl || "/males/1.png"}
             className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
