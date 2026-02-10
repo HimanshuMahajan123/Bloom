@@ -66,7 +66,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   );
 
   /* 2️⃣ Nearby users */
-  const nearby = getNearbyUsers(userId, 600);
+  const nearby = getNearbyUsers(userId, 400);
 
   console.log(`${tag} nearby users`, nearby.map((u) => u.slice(0, 6)));
 
