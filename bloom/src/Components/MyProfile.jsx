@@ -79,7 +79,7 @@ const MyProfile = () => {
     {user.username}
   </h2>
 
-  <button onClick={logout} className="px-4 py-2 rounded-full bg-[#ca4343] text-white text-sm hover:bg-[#ec1b1b]">
+  <button onClick={logout} className="px-4 py-2 rounded-full bg-[#ca4343] text-white text-sm hover:bg-[#ec1b1b] outline-none">
     Logout
   </button>
 </div>

@@ -52,7 +52,7 @@ const SwipeCard = ({
 
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-black/5 transition"
+              className="p-2 rounded-full hover:bg-black/5 transition outline-none"
             >
               <X />
             </button>
@@ -71,7 +71,7 @@ const SwipeCard = ({
             <div className="mt-8 flex justify-between items-center">
               <button
                 onClick={() => handleSwipe("left")}
-                className="h-12 w-12 rounded-full bg-white/80 hover:bg-white shadow flex items-center justify-center text-xl transition"
+                className="h-12 w-12 rounded-full bg-white/80 hover:bg-white shadow flex items-center justify-center text-xl transition outline-none"
                 title="Not my spark"
               >
                 💔
@@ -79,7 +79,7 @@ const SwipeCard = ({
 
               <button
                 onClick={() => handleSwipe("right")}
-                className="h-12 w-12 rounded-full bg-[#af323f] hover:bg-[#922733] shadow flex items-center justify-center text-xl transition"
+                className="h-12 w-12 rounded-full bg-[#af323f] hover:bg-[#922733] shadow flex items-center justify-center text-xl transition outline-none"
                 title="Feel the spark"
               >
                 ❤️

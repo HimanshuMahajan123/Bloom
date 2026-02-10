@@ -279,7 +279,7 @@ export default function Dashboard() {
 
         <button
           onClick={openNotifications}
-          className="relative p-2.5 rounded-full bg-white/20 backdrop-blur-md"
+          className="relative p-2.5 rounded-full bg-white/20 backdrop-blur-md outline-none"
         >
           <Bell size={18} className="text-white" />
           {signals.length > 0 && (
@@ -385,7 +385,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => setNotifPanelOpen(false)}
-                className="p-2 rounded-full hover:bg-black/5 transition"
+                className="p-2 rounded-full hover:bg-black/5 transition outline-none"
               >
                 <X size={18} />
               </button>
@@ -419,6 +419,7 @@ export default function Dashboard() {
     transition
     shadow-sm
     flex flex-col gap-1
+    outline-none
   "
                     style={{
                       backgroundColor:

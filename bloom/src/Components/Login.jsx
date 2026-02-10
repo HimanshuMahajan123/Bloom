@@ -215,6 +215,7 @@ const Login = () => {
                   shadow-[0_10px_30px_rgba(175,50,63,0.35)]
                   transition-all
                   duration-300
+                  outline-none
                   active:scale-95
                   ${
                     loading

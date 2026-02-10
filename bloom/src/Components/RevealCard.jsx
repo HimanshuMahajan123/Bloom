@@ -57,7 +57,7 @@ const RevealCard = ({ expandedProfile, onClose }) => {
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-black/5"
+            className="p-2 rounded-full hover:bg-black/5 outline-none"
           >
             <X />
           </button>
@@ -83,7 +83,7 @@ const RevealCard = ({ expandedProfile, onClose }) => {
                 onClick={handleReveal}
                 disabled={phase !== "idle"}
                 className={`
-                  relative transition-transform duration-[1400ms] ease-in-out
+                  relative transition-transform duration-[1400ms] ease-in-out outline-none
                   ${phase === "lifting" ? "-translate-y-56 scale-110" : ""}
                   ${phase === "impact" ? "scale-150 opacity-0" : ""}
                 `}

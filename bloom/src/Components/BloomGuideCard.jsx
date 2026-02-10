@@ -100,7 +100,7 @@ const BloomGuideCard = ({ open, accepted, setAccepted, onClose, onEnter }) => {
               disabled={!accepted}
               onClick={onEnter}
               className={`
-                mt-4 w-full py-3 rounded-xl text-white italic transition
+                mt-4 w-full py-3 rounded-xl text-white italic transition outline-none
                 ${
                   accepted
                     ? "bg-[#af323f] hover:bg-[#992a34]"
