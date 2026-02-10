@@ -54,7 +54,7 @@ export const checkLiveSignals = asyncHandler(async (req, res) => {
   });
 
   /* 2️⃣ Nearby users */
-  const nearby = getNearbyUsers(userId, 300);
+  const nearby = getNearbyUsers(userId, 600);
   if (!nearby.length) {
     return res.json(
       new ApiResponse(
