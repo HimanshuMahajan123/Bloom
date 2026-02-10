@@ -265,6 +265,7 @@ export default function Dashboard() {
     shadow-2xl
     flex flex-col
     max-h-[85vh]
+    overflow-hidden
   "
           >
             {/* Header */}
@@ -297,7 +298,7 @@ export default function Dashboard() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
+<div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
               {(notifTab === "signals"
                 ? signals
                 : notifTab === "likes"
