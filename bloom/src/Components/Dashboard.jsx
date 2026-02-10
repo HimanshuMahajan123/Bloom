@@ -347,9 +347,9 @@ export default function Dashboard() {
 
                     {/* Subtitle */}
                     <div className="font-lora text-xs text-[#5b2a2a]/70">
-                      {notifTab === "signals" && "A signal crossed your path"}
+                      {notifTab === "signals" && "A signal crossed your path | Click to swipe"}
                       {notifTab === "likes" && "They felt a spark"}
-                      {notifTab === "resonance" && "A mutual bloom"}
+                      {notifTab === "resonance" && "A mutual bloom | Click to reveal"}
                     </div>
                   </button>
                 ))
