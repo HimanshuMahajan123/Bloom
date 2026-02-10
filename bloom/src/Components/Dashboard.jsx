@@ -82,7 +82,6 @@ export default function Dashboard() {
         },
       );
     };
-
     // run once immediately
     sendLocation();
 
@@ -311,49 +310,48 @@ export default function Dashboard() {
                     ? likes
                     : resonance
                 ).map((s) => (
-              <button
-  key={notifTab + s.id}
-  onClick={() => {
-    setExpandedProfile({
-      ...s,
-      source: notifTab, // "signals" | "likes" | "resonance"
-    });
-  }}
-  className="
+                  <button
+                    key={notifTab + s.id}
+                    onClick={() => {
+                      setExpandedProfile({
+                        ...s,
+                        source: notifTab, // "signals" | "likes" | "resonance"
+                      });
+                    }}
+                    className="
     w-full text-left rounded-2xl px-4 py-4
     hover:bg-[#fdeeee]
     transition
     shadow-sm
     flex flex-col gap-1
   "
-  style={{
-    backgroundColor:
-      (s?.source || "PROXIMITY") === "PROXIMITY"
-        ? "#fff7f6"
-        : "rgba(187,151,35,1)",
-  }}
->
-  {/* Username */}
-  <div className="font-playfair italic text-base text-[#5b2a2a] truncate flex items-center justify-between">
-    <span>{s.username || "Someone nearby"}</span>
+                    style={{
+                      backgroundColor:
+                        (s?.source || "PROXIMITY") === "PROXIMITY"
+                          ? "#fff7f6"
+                          : "rgba(187,151,35,1)",
+                    }}
+                  >
+                    {/* Username */}
+                    <div className="font-playfair italic text-base text-[#5b2a2a] truncate flex items-center justify-between">
+                      <span>{s.username || "Someone nearby"}</span>
 
-    {/* 🔥 Score for likes & signals */}
-    {(notifTab === "likes" || notifTab === "signals") &&
-      typeof s.similarity === "number" && (
-        <span className="ml-2 text-xs font-lora text-[#8c3037]">
-          {Math.round(s.similarity * 100)}%
-        </span>
-      )}
-  </div>
+                      {/* 🔥 Score for likes & signals */}
+                      {(notifTab === "likes" || notifTab === "signals") &&
+                        typeof s.similarity === "number" && (
+                          <span className="ml-2 text-xs font-lora text-[#8c3037]">
+                            {Math.round(s.similarity * 100)}%
+                          </span>
+                        )}
+                    </div>
 
-  {/* Subtitle */}
-  <div className="font-lora text-xs text-[#5b2a2a]/70">
-    {notifTab === "signals" && "A signal crossed your path"}
-    {notifTab === "likes" && "They felt a spark"}
-    {notifTab === "resonance" && "A mutual bloom"}
-  </div>
-</button>
-
+                    {/* Subtitle */}
+                    <div className="font-lora text-xs text-[#5b2a2a]/70">
+                      {notifTab === "signals" && "A signal crossed your path"}
+                      {notifTab === "likes" && "They felt a spark"}
+                      {notifTab === "resonance" && "A mutual bloom"}
+                    </div>
+                  </button>
                 ))
               ) : (
                 <div className="text-sm text-center py-10 text-[#5b2a2a]/60">
