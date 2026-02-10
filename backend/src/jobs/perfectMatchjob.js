@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import prisma from "../db/prisma.js";
 import { findPerfectMatches } from "../controllers/profile.controllers.js";
-const PERFECT_THRESHOLD = 0.87; // Minimum score for a perfect match
+const PERFECT_THRESHOLD = 0.95; // Minimum score for a perfect match
 const TTL = 3 * 60; // 3 hours in milliseconds
 //cron format is "minute hour dayOfMonth month dayOfWeek
 //every 3 hrs  fetch location of all users and calculate signals
