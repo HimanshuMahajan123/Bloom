@@ -45,7 +45,7 @@ export default function ExpandedFeedCard({ profile, onClose }) {
             </h2>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-black/5 transition"
+              className="p-2 rounded-full hover:bg-black/5 transition outline-none"
             >
               <X />
             </button>

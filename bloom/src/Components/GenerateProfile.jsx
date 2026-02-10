@@ -168,7 +168,7 @@ const GenerateProfile = () => {
                 <button
                   key={g}
                   onClick={() => handleAnswer(g)}
-                  className={`px-5 py-2 rounded-full ${
+                  className={`px-5 py-2 rounded-full outline-none ${
                     answers[step] === g ? "bg-[#af323f] text-white" : "bg-white"
                   }`}
                 >
@@ -197,6 +197,7 @@ const GenerateProfile = () => {
               hover:bg-[#af323f]
               transition
               active:scale-95
+              outline-none
             "
           >
             {step === questions.length - 1
@@ -277,6 +278,7 @@ const GenerateProfile = () => {
     rounded-xl
     font-lora italic
     hover:bg-[#a8323d]
+    outline-none
   "
 >
   Explore your matches
