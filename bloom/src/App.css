@@ -180,3 +180,16 @@
 .animate-reveal {
   animation: revealFade 500ms ease-out forwards;
 }
+
+
+button {
+  outline: none;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: none;
+}

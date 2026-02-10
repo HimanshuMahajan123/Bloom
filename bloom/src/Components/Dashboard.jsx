@@ -199,7 +199,7 @@ export default function Dashboard() {
    px-2
   bg-linear-to-b from-[#700912]/90 to-[#700912]/40
   backdrop-blur-md
-  rounded-lg
+  rounded-full
   p-0.5
 ">
         <NavLink to="/profile" className="flex items-center gap-3">
