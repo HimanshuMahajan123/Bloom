@@ -190,7 +190,7 @@ export default function Dashboard() {
           />
         ))}
       </div>
-<div className="relative z-10 h-full min-h-0 overflow-y-auto no-scrollbar px-6 py-8">
+<div className="relative z-10 h-full min-h-0 overflow-y-auto no-scrollbar px-6 py-4">
 
       {/* Top Bar */}
 <div className="
