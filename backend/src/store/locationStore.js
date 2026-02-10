@@ -54,12 +54,17 @@ function getNeighborCells(cellKey, radiusMeters) {
 
 export function updateUserLocation(userId, lat, lng) {
   const tag = `[LOC:${userId.slice(0, 6)}]`;
+  const now = Date.now();
 
   const prev = userLocation.get(userId);
 
+  // Always refresh presence
   if (prev && !movedSignificantly(prev, lat, lng)) {
-    userLocation.set(userId, { ...prev, updatedAt: Date.now() });
-    console.log(`${tag} jitter update → timestamp refreshed`);
+    userLocation.set(userId, {
+      ...prev,
+      updatedAt: now,
+    });
+    console.log(`${tag} presence refreshed (no movement)`);
     return;
   }
 
@@ -76,14 +81,17 @@ export function updateUserLocation(userId, lat, lng) {
   spatialGrid.get(newCell).add(userId);
 
   userCellIndex.set(userId, newCell);
-  userLocation.set(userId, { lat, lng, updatedAt: Date.now() });
+  userLocation.set(userId, {
+    lat,
+    lng,
+    updatedAt: now,
+  });
 
   console.log(
-    `${tag} location updated → cell=${newCell} lat=${lat.toFixed(
-      6,
-    )} lng=${lng.toFixed(6)}`,
+    `${tag} moved → cell=${newCell} lat=${lat.toFixed(6)} lng=${lng.toFixed(6)}`
   );
 }
+
 
 export function getNearbyUsers(userId, radius = 50) {
   const tag = `[PROX:${userId.slice(0, 6)}]`;
@@ -132,7 +140,7 @@ export function getNearbyUsers(userId, radius = 50) {
       continue;
     }
 
-    if (Date.now() - other.updatedAt > 180_000) { // 3 mins 
+    if (Date.now() - other.updatedAt > 180_000) { // 5 mins 
       console.log(`${tag} drop ${uid.slice(0, 6)} → stale location`);
       continue;
     }
