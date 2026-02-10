@@ -204,10 +204,12 @@ const GenerateProfile = () => {
               : "Continue"}
           </button>
 {/* Privacy reassurance */}
-<p className="mt-4 mb-2 text-xs font-lora italic text-[#5b2a2a]/60">
+{showPrivacy && (
+  <p className="mt-4 mb-2 text-xs font-lora italic text-[#5b2a2a]/60">
   Your answers aren’t saved as readable text — they’re used only to shape the feeling of your profile.
 </p>
-
+)
+}
 
 
 
