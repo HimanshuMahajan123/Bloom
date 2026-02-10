@@ -14,6 +14,7 @@ import { useAuth } from "../contexts/AuthContext";
 import ExpandedFeedCard from "./ExpandedFeedCard";
 import RevealCard from "./RevealCard";
 import SwipeCard from "./SwipeCard";
+
 /* ---------- helpers ---------- */
 const truncateWords = (text, limit = 80) => {
   if (!text) return "";
@@ -49,6 +50,11 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const [feedData, setFeedData] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
   const [signals, setSignals] = useState([]);
   const [likes, setLikes] = useState([]);
   const [resonance, setResonance] = useState([]);
@@ -58,11 +64,13 @@ export default function Dashboard() {
   const [notifTab, setNotifTab] = useState("signals");
 
   const nearbyCheckIntervalRef = useRef(null);
+  const observerTarget = useRef(null);
   const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
     setIsTouch("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
+
   useEffect(() => {
     if (!navigator.geolocation) return;
 
@@ -107,10 +115,69 @@ export default function Dashboard() {
     };
   }, []);
 
-  /* ---------- FEED ---------- */
+  /* ---------- INITIAL FEED LOAD ---------- */
   useEffect(() => {
-    fetchHome().then((res) => setFeedData(res?.data?.items || []));
+    const loadInitialFeed = async () => {
+      try {
+        setInitialLoading(true);
+        const res = await fetchHome();
+        setFeedData(res?.data?.items || []);
+        setNextCursor(res?.data?.nextCursor || null);
+        setHasMore(res?.data?.nextCursor !== null);
+      } catch (error) {
+        console.error("Failed to load feed:", error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadInitialFeed();
   }, []);
+
+  /* ---------- LOAD MORE FUNCTION ---------- */
+  const loadMoreFeed = async () => {
+    if (!nextCursor || loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+      const res = await fetchHome(nextCursor.cursor, nextCursor.id);
+
+      setFeedData((prev) => [...prev, ...(res?.data?.items || [])]);
+      setNextCursor(res?.data?.nextCursor || null);
+      setHasMore(res?.data?.nextCursor !== null);
+    } catch (error) {
+      console.error("Failed to load more feed:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  /* ---------- INFINITE SCROLL OBSERVER ---------- */
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !loadingMore &&
+          !initialLoading
+        ) {
+          loadMoreFeed();
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [hasMore, loadingMore, nextCursor, initialLoading]);
 
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -222,15 +289,45 @@ export default function Dashboard() {
       </div>
 
       {/* Feed */}
-      <div className="flex flex-col items-center relative z-10 pt-6">
-        {feedData.map((item) => (
-          <FeedCard
-            key={item.id}
-            item={item}
-            onExpand={(item) => setExpandedProfile({ ...item, source: "feed" })}
-          />
-        ))}
+      <div className="flex flex-col items-center relative z-10">
+        {initialLoading ? (
+          <div className="text-white text-center py-10">Loading feed...</div>
+        ) : (
+          <>
+            {feedData.map((item) => (
+              <FeedCard
+                key={item.id}
+                item={item}
+                onExpand={(item) =>
+                  setExpandedProfile({ ...item, source: "feed" })
+                }
+              />
+            ))}
+
+            {/* Infinite scroll trigger */}
+            {hasMore && (
+              <div ref={observerTarget} className="w-full py-6 text-center">
+                {loadingMore && (
+                  <div className="text-white/80 text-sm">Loading more...</div>
+                )}
+              </div>
+            )}
+
+            {!hasMore && feedData.length > 0 && (
+              <div className="text-white/60 text-sm py-6 text-center">
+                No more poems to show
+              </div>
+            )}
+
+            {!hasMore && feedData.length === 0 && (
+              <div className="text-white/60 text-sm py-6 text-center">
+                No poems available
+              </div>
+            )}
+          </>
+        )}
       </div>
+
       {/* ---------- Expanded Cards ---------- */}
       {/* Feed → Read-only */}
       {expandedProfile?.source === "feed" && (
@@ -267,31 +364,18 @@ export default function Dashboard() {
       {/* Notifications Panel */}
       {notifPanelOpen && (
         <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
-          <div
-            className="
-    w-full max-w-md
-    bg-white/95
-    rounded-3xl
-    shadow-2xl
-    flex flex-col
-    max-h-[85vh]
-    overflow-hidden
-  "
-          >
+          <div className="w-full max-w-md bg-white/95 rounded-3xl shadow-2xl flex flex-col max-h-[85vh]">
             {/* Header */}
             <div className="flex items-start justify-between px-4 py-4 shrink-0">
               <div className="flex gap-2">
                 {["signals", "likes", "resonance"].map((t) => (
                   <button
                     key={t}
-                    className={`
-                px-3 py-2 rounded-full text-sm capitalize transition
-                ${
-                  notifTab === t
-                    ? "bg-[#f9e8e8] text-[#5b2a2a]"
-                    : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"
-                }
-              `}
+                    className={`px-3 py-2 rounded-full text-sm capitalize transition ${
+                      notifTab === t
+                        ? "bg-[#f9e8e8] text-[#5b2a2a]"
+                        : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"
+                    }`}
                     onClick={() => setNotifTab(t)}
                   >
                     {t}
