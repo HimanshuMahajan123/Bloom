@@ -22,28 +22,61 @@ const truncateWords = (text, limit = 80) => {
   return words.length <= limit ? text : words.slice(0, limit).join(" ") + "…";
 };
 
-/* ---------- FeedCard ---------- */
-const FeedCard = ({ item, onExpand }) => (
-  <div
-    className="paper max-w-xl w-full mt-6 mb-6 px-8 py-6 relative rounded-3xl shadow-lg bg-white/10 animate-slide-up backdrop-blur-sm"
-    style={{
-      backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
-      backgroundSize: "cover, 220px",
-      backgroundRepeat: "no-repeat, repeat",
-    }}
-    onClick={() => onExpand(item)}
-  >
-    <h2 className="text-center text-2xl font-playfair italic text-[#5b2a2a] mb-4">
-      {item.username}
-    </h2>
-    <p className="font-lora italic text-sm text-[#4a2c2a] leading-relaxed">
-      {truncateWords(item.poem, 40)}
-    </p>
-    <p className="mt-4 text-center text-xs italic text-[#8c3037]/60">
-      Tap to open profile
-    </p>
-  </div>
-);
+/* ---------- FeedCard with animation ---------- */
+const FeedCard = ({ item, onExpand, index }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`
+        paper max-w-xl w-full mt-6 mb-6 px-8 py-6 relative rounded-3xl 
+        shadow-lg bg-white/10 backdrop-blur-sm cursor-pointer
+        transition-all duration-700 ease-out
+        ${isVisible 
+          ? 'opacity-100 translate-y-0 scale-100' 
+          : 'opacity-0 translate-y-12 scale-95'
+        }
+      `}
+      style={{
+        backgroundImage: `radial-gradient(ellipse at center, rgba(255,248,237,0.85) 0%, rgba(255,248,237,0.65) 75%), url(${multi_heart})`,
+        backgroundSize: "cover, 220px",
+        backgroundRepeat: "no-repeat, repeat",
+        transitionDelay: `${Math.min(index * 100, 400)}ms`,
+      }}
+      onClick={() => onExpand(item)}
+    >
+      <h2 className="text-center text-2xl font-playfair italic text-[#5b2a2a] mb-4">
+        {item.username}
+      </h2>
+      <p className="font-lora italic text-sm text-[#4a2c2a] leading-relaxed">
+        {truncateWords(item.poem, 40)}
+      </p>
+      <p className="mt-4 text-center text-xs italic text-[#8c3037]/60">
+        Tap to open profile
+      </p>
+    </div>
+  );
+};
 
 /* ---------- Dashboard ---------- */
 export default function Dashboard() {
@@ -231,7 +264,7 @@ export default function Dashboard() {
   };
 
   return (
-<div className="h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] relative overflow-hidden">
+    <div className="h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] relative overflow-hidden">
       {/* Ambient hearts & balloons */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
         {[...Array(150)].map((_, i) => (
@@ -257,210 +290,265 @@ export default function Dashboard() {
           />
         ))}
       </div>
-<div className="relative z-10 h-full min-h-0 overflow-y-auto no-scrollbar px-6 py-4">
+      
+      <div className="relative z-10 h-full min-h-0 overflow-y-auto no-scrollbar px-6 py-4">
+        {/* Top Bar */}
+        <div className="
+          sticky top-0 z-20
+          flex justify-between items-center
+          px-2
+          bg-linear-to-b from-[#700912]/90 to-[#700912]/40
+          backdrop-blur-md
+          rounded-full
+          p-0.5
+        ">
+          <NavLink to="/profile" className="flex items-center gap-3">
+            <img
+              src={user?.avatarUrl || "/males/1.png"}
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
+            />
+            <p className="font-playfair italic text-white">{user?.username}</p>
+          </NavLink>
 
-      {/* Top Bar */}
-<div className="
-  sticky top-0 z-20
-  flex justify-between items-center
-   px-2
-  bg-linear-to-b from-[#700912]/90 to-[#700912]/40
-  backdrop-blur-md
-  rounded-full
-  p-0.5
-">
-        <NavLink to="/profile" className="flex items-center gap-3 outline-none">
-          <img
-            src={user?.avatarUrl || "/males/1.png"}
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-white/30"
-          />
-          <p className="font-playfair italic text-white">{user?.username}</p>
-        </NavLink>
+          <button
+            onClick={openNotifications}
+            className="relative p-2.5 rounded-full bg-white/20 backdrop-blur-md outline-none"
+          >
+            <Bell size={18} className="text-white" />
+            {signals.length > 0 && (
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" />
+            )}
+          </button>
+        </div>
 
-        <button
-          onClick={openNotifications}
-          className="relative p-2.5 rounded-full bg-white/20 backdrop-blur-md outline-none"
-        >
-          <Bell size={18} className="text-white" />
-          {signals.length > 0 && (
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#ff6b6b]" />
+        {/* Feed */}
+        <div className="flex flex-col items-center relative z-10">
+          {initialLoading ? (
+            <div className="text-white text-center py-10 animate-pulse">
+              Loading feed...
+            </div>
+          ) : (
+            <>
+              {feedData.map((item, index) => (
+                <FeedCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  onExpand={(item) =>
+                    setExpandedProfile({ ...item, source: "feed" })
+                  }
+                />
+              ))}
+
+              {/* Infinite scroll trigger */}
+              {hasMore && (
+                <div ref={observerTarget} className="w-full py-6 text-center">
+                  {loadingMore && (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!hasMore && feedData.length > 0 && (
+                <div className="text-white/60 text-sm py-6 text-center">
+                  No more poems to show
+                </div>
+              )}
+
+              {!hasMore && feedData.length === 0 && (
+                <div className="text-white/60 text-sm py-6 text-center">
+                  No poems available
+                </div>
+              )}
+            </>
           )}
-        </button>
-      </div>
+        </div>
 
-      {/* Feed */}
-      <div className="flex flex-col items-center relative z-10">
-        {initialLoading ? (
-          <div className="text-white text-center py-10">Loading feed...</div>
-        ) : (
-          <>
-            {feedData.map((item) => (
-              <FeedCard
-                key={item.id}
-                item={item}
-                onExpand={(item) =>
-                  setExpandedProfile({ ...item, source: "feed" })
-                }
-              />
-            ))}
-
-            {/* Infinite scroll trigger */}
-            {hasMore && (
-              <div ref={observerTarget} className="w-full py-6 text-center">
-                {loadingMore && (
-                  <div className="text-white/80 text-sm">Loading more...</div>
-                )}
-              </div>
-            )}
-
-            {!hasMore && feedData.length > 0 && (
-              <div className="text-white/60 text-sm py-6 text-center">
-                No more poems to show
-              </div>
-            )}
-
-            {!hasMore && feedData.length === 0 && (
-              <div className="text-white/60 text-sm py-6 text-center">
-                No poems available
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ---------- Expanded Cards ---------- */}
-      {/* Feed → Read-only */}
-      {expandedProfile?.source === "feed" && (
-        <ExpandedFeedCard
-          profile={expandedProfile}
-          onClose={() => setExpandedProfile(null)}
-        />
-      )}
-
-      {/* Signals & Likes → Swipe */}
-      {expandedProfile &&
-        (expandedProfile.source === "signals" ||
-          expandedProfile.source === "likes") && (
-          <SwipeCard
-            expandedProfile={expandedProfile}
-            swipeClass={swipeClass}
-            isTouch={isTouch}
-            handleTouchStart={handleTouchStart}
-            handleTouchMove={handleTouchMove}
-            handleTouchEnd={handleTouchEnd}
-            handleSwipe={handleSwipe}
+        {/* ---------- Expanded Cards ---------- */}
+        {/* Feed → Read-only */}
+        {expandedProfile?.source === "feed" && (
+          <ExpandedFeedCard
+            profile={expandedProfile}
             onClose={() => setExpandedProfile(null)}
           />
         )}
 
-      {/* Resonance → Reveal */}
-      {expandedProfile?.source === "resonance" && (
-        <RevealCard
-          expandedProfile={expandedProfile}
-          onClose={() => setExpandedProfile(null)}
-        />
-      )}
+        {/* Signals & Likes → Swipe */}
+        {expandedProfile &&
+          (expandedProfile.source === "signals" ||
+            expandedProfile.source === "likes") && (
+            <SwipeCard
+              expandedProfile={expandedProfile}
+              swipeClass={swipeClass}
+              isTouch={isTouch}
+              handleTouchStart={handleTouchStart}
+              handleTouchMove={handleTouchMove}
+              handleTouchEnd={handleTouchEnd}
+              handleSwipe={handleSwipe}
+              onClose={() => setExpandedProfile(null)}
+            />
+          )}
 
-      {/* Notifications Panel */}
-      {notifPanelOpen && (
-        <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden">
-          <div className="w-full max-w-md bg-white/95 rounded-3xl shadow-2xl flex flex-col max-h-[85vh]">
-            {/* Header */}
-            <div className="flex items-start justify-between px-4 py-4 shrink-0">
-              <div className="flex gap-2">
-                {["signals", "likes", "resonance"].map((t) => (
-                  <button
-                    key={t}
-                    className={`px-3 py-2 rounded-full text-sm capitalize transition ${
-                      notifTab === t
-                        ? "bg-[#f9e8e8] text-[#5b2a2a]"
-                        : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"
-                    }`}
-                    onClick={() => setNotifTab(t)}
-                  >
-                    {t}
-                  </button>
-                ))}
+        {/* Resonance → Reveal */}
+        {expandedProfile?.source === "resonance" && (
+          <RevealCard
+            expandedProfile={expandedProfile}
+            onClose={() => setExpandedProfile(null)}
+          />
+        )}
+
+        {/* Notifications Panel */}
+        {notifPanelOpen && (
+          <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden animate-fadeIn">
+            <div className="w-full max-w-md bg-white/95 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] animate-slideUpFade">
+              {/* Header */}
+              <div className="flex items-start justify-between px-4 py-4 shrink-0">
+                <div className="flex gap-2">
+                  {["signals", "likes", "resonance"].map((t) => (
+                    <button
+                      key={t}
+                      className={`px-3 py-2 rounded-full text-sm capitalize transition-all duration-200 ${
+                        notifTab === t
+                          ? "bg-[#f9e8e8] text-[#5b2a2a] scale-105"
+                          : "bg-white text-[#5b2a2a]/60 hover:bg-[#f9e8e8]/60"
+                      }`}
+                      onClick={() => setNotifTab(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setNotifPanelOpen(false)}
+                  className="p-2 rounded-full hover:bg-black/5 transition outline-none"
+                >
+                  <X size={18} />
+                </button>
               </div>
 
-              <button
-                onClick={() => setNotifPanelOpen(false)}
-                className="p-2 rounded-full hover:bg-black/5 transition outline-none"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Content */}
-<div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
-              {(notifTab === "signals"
-                ? signals
-                : notifTab === "likes"
-                  ? likes
-                  : resonance
-              ).length ? (
-                (notifTab === "signals"
+              {/* Content */}
+              <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 py-3 space-y-3">
+                {(notifTab === "signals"
                   ? signals
                   : notifTab === "likes"
                     ? likes
                     : resonance
-                ).map((s) => (
-                  <button
-                    key={notifTab + s.id}
-                    onClick={() => {
-                      setExpandedProfile({
-                        ...s,
-                        source: notifTab, // "signals" | "likes" | "resonance"
-                      });
-                    }}
-                    className="
-    w-full text-left rounded-2xl px-4 py-4
-    hover:bg-[#fdeeee]
-    transition
-    shadow-sm
-    flex flex-col gap-1
-    outline-none
-  "
-                    style={{
-                      backgroundColor:
-                        (s?.source || "PROXIMITY") === "PROXIMITY"
-                          ? "#fff7f6"
-                          : "rgba(187,151,35,1)",
-                    }}
-                  >
-                    {/* Username */}
-                    <div className="font-playfair italic text-base text-[#5b2a2a] truncate flex items-center justify-between">
-                      <span>{s.username || "Someone nearby"}</span>
+                ).length ? (
+                  (notifTab === "signals"
+                    ? signals
+                    : notifTab === "likes"
+                      ? likes
+                      : resonance
+                  ).map((s, idx) => (
+                    <button
+                      key={notifTab + s.id}
+                      onClick={() => {
+                        setExpandedProfile({
+                          ...s,
+                          source: notifTab,
+                        });
+                      }}
+                      className="
+                        w-full text-left rounded-2xl px-4 py-4
+                        hover:bg-[#fdeeee] active:scale-98
+                        transition-all duration-200
+                        shadow-sm
+                        flex flex-col gap-1
+                        outline-none
+                        animate-slideInStagger
+                      "
+                      style={{
+                        backgroundColor:
+                          (s?.source || "PROXIMITY") === "PROXIMITY"
+                            ? "#fff7f6"
+                            : "rgba(187,151,35,1)",
+                        animationDelay: `${idx * 50}ms`,
+                      }}
+                    >
+                      {/* Username */}
+                      <div className="font-playfair italic text-base text-[#5b2a2a] truncate flex items-center justify-between">
+                        <span>{s.username || "Someone nearby"}</span>
 
-                      {/* 🔥 Score for likes & signals */}
-                      {(notifTab === "likes" || notifTab === "signals") &&
-                        typeof s.similarity === "number" && (
-                          <span className="ml-2 text-xs font-lora text-[#8c3037]">
-                            {Math.round(s.similarity * 100)}%
-                          </span>
-                        )}
-                    </div>
+                        {/* Score for likes & signals */}
+                        {(notifTab === "likes" || notifTab === "signals") &&
+                          typeof s.similarity === "number" && (
+                            <span className="ml-2 text-xs font-lora text-[#8c3037]">
+                              {Math.round(s.similarity * 100)}%
+                            </span>
+                          )}
+                      </div>
 
-                    {/* Subtitle */}
-                    <div className="font-lora text-xs text-[#5b2a2a]/70">
-                      {notifTab === "signals" && "A signal crossed your path | Click to view profile"}
-                      {notifTab === "likes" && "They felt a spark"}
-                      {notifTab === "resonance" && "A mutual bloom | Click to reveal"}
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="text-sm text-center py-10 text-[#5b2a2a]/60">
-                  {notifTab === "signals" && "No signals nearby right now."}
-                  {notifTab === "likes" && "No sparks yet."}
-                  {notifTab === "resonance" && "No blooms yet."}
-                </div>
-              )}
+                      {/* Subtitle */}
+                      <div className="font-lora text-xs text-[#5b2a2a]/70">
+                        {notifTab === "signals" && "A signal crossed your path | Click to view profile"}
+                        {notifTab === "likes" && "They felt a spark"}
+                        {notifTab === "resonance" && "A mutual bloom | Click to reveal"}
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-sm text-center py-10 text-[#5b2a2a]/60">
+                    {notifTab === "signals" && "No signals nearby right now."}
+                    {notifTab === "likes" && "No sparks yet."}
+                    {notifTab === "resonance" && "No blooms yet."}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
+      
+      {/* Add CSS animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideUpFade {
+          from {
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        @keyframes slideInStagger {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        
+        .animate-slideUpFade {
+          animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .animate-slideInStagger {
+          animation: slideInStagger 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        
+        .active\:scale-98:active {
+          transform: scale(0.98);
+        }
+      `}</style>
     </div>
   );
 }
