@@ -112,6 +112,7 @@ const GenerateProfile = () => {
   const [showGuide , setShowGuide] = useState(false) ; 
   const [accepted , setAccepted] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [showPrivacy, setShowPrivacy] = useState(true);
   const current = questions[step];
 
   const handleAnswer = (value) => {
@@ -135,6 +136,7 @@ const GenerateProfile = () => {
         setPoem(data.poem);
         setAvatarUrl(data.avatarUrl);
         setRevealed(true);
+        setShowPrivacy(false);
       } catch (err) {
                 console.error("Error generating profile:", err);
         alert("Something went wrong. Please try again.");
@@ -201,6 +203,14 @@ const GenerateProfile = () => {
               ? "Unfold my profile ✨"
               : "Continue"}
           </button>
+{/* Privacy reassurance */}
+<p className="mt-4 mb-2 text-xs font-lora italic text-[#5b2a2a]/60">
+  Your answers aren’t saved as readable text — they’re used only to shape the feeling of your profile.
+</p>
+
+
+
+
         </div>
       ) : (
         <div className="fixed inset-0 z-[100] overflow-hidden">
