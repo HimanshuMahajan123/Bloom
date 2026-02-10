@@ -164,7 +164,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] px-6 py-8 relative">
+<div className="h-screen bg-linear-to-b from-[#700912] via-[#c4505a] to-[#dd908c] relative overflow-hidden">
       {/* Ambient hearts & balloons */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
         {[...Array(150)].map((_, i) => (
@@ -190,8 +190,16 @@ export default function Dashboard() {
           />
         ))}
       </div>
+<div className="relative z-10 h-full min-h-0 overflow-y-auto no-scrollbar px-6 py-8">
+
       {/* Top Bar */}
-      <div className="flex justify-between items-center mb-6 relative z-10 px-2">
+<div className="
+  sticky top-0 z-20
+  flex justify-between items-center
+   px-2
+  bg-linear-to-b from-[#700912]/90 to-[#700912]/40
+  backdrop-blur-md
+">
         <NavLink to="/profile" className="flex items-center gap-3">
           <img
             src={user?.avatarUrl || "/males/1.png"}
@@ -212,7 +220,7 @@ export default function Dashboard() {
       </div>
 
       {/* Feed */}
-      <div className="flex flex-col items-center relative z-10">
+      <div className="flex flex-col items-center relative z-10 pt-6">
         {feedData.map((item) => (
           <FeedCard
             key={item.id}
@@ -348,7 +356,7 @@ export default function Dashboard() {
 
                     {/* Subtitle */}
                     <div className="font-lora text-xs text-[#5b2a2a]/70">
-                      {notifTab === "signals" && "A signal crossed your path | Click to swipe"}
+                      {notifTab === "signals" && "A signal crossed your path | Click to view profile"}
                       {notifTab === "likes" && "They felt a spark"}
                       {notifTab === "resonance" && "A mutual bloom | Click to reveal"}
                     </div>
@@ -365,6 +373,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
