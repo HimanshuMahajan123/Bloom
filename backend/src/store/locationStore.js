@@ -132,7 +132,7 @@ export function getNearbyUsers(userId, radius = 50) {
       continue;
     }
 
-    if (Date.now() - other.updatedAt > 30_000) {
+    if (Date.now() - other.updatedAt > 180_000) { // 3 mins 
       console.log(`${tag} drop ${uid.slice(0, 6)} → stale location`);
       continue;
     }

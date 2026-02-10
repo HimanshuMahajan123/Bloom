@@ -10,7 +10,8 @@ import matchRoutes from "./routes/match.routes.js";
 
 import "./config/passport.js";
 import "./jobs/perfectMatchjob.js";
-
+// import prisma from "./db/prisma.js";
+// await prisma.user.deleteMany({ where: {} });
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json());
