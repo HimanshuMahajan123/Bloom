@@ -500,13 +500,16 @@ const findPerfectMatches = async (userId, PERFECT_THRESHOLD, TTL_MINUTES) => {
     }),
   );
 
-  const qualified = [];
 
-  for (const r of scored) {
-    if (r.status === "fulfilled" && r.value.score >= PERFECT_THRESHOLD) {
-      qualified.push(r.value);
-    }
-  }
+const qualified = scored
+  .filter(r => r.status === "fulfilled" && r.value.score >= PERFECT_THRESHOLD)
+  .map(r => r.value)
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 10)              // top 10
+  .sort(() => Math.random() - 0.5)
+  .slice(0, 3);              // pick 3 randomly
+
+
 
   if (!qualified.length) {
     throw new Error("No qualified candidates found");
