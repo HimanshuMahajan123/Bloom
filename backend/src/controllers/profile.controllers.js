@@ -88,6 +88,8 @@ const submitAnswersAndGenerateProfile = asyncHandler(async (req, res) => {
   - do not mention questions, quizzes, or prompts
   - output only the final profile text
   - no names 
+  - nothing like I am a college student or any dull profiles. Be creative and romantic based on the answers in a natural way.
+  - don't make something that could be obscene 
 
   Answers:
   ${normalizedAnswers.map((a, i) => `${i + 1}. ${a}`).join("\n")}
