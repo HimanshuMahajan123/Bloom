@@ -1,4 +1,4 @@
-const MAX_SIGNALS = 20;
+const MAX_SIGNALS = 100;
 const CENTRAL_THRESHOLD = 0.87;
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/api-error.js";
