@@ -103,50 +103,61 @@ export default function Dashboard() {
   useEffect(() => {
     setIsTouch("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
+useEffect(() => {
+  if (!navigator.geolocation) return;
 
-  useEffect(() => {
-    if (!navigator.geolocation) return;
+  const sendLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        updateUserLocation(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => console.error("Location error:", err),
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10_000,
+        timeout: 10_000,
+      }
+    );
+  };
 
-    // ---- send location ----
-    const sendLocation = () => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          updateUserLocation(pos.coords.latitude, pos.coords.longitude);
-        },
-        (err) => {
-          console.error("Location error:", err);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 10_000,
-          timeout: 10_000,
-        },
-      );
-    };
-    // run once immediately
+  const init = async () => {
     sendLocation();
 
-    // every 60 seconds
-    const locationInterval = setInterval(sendLocation, 60_000);
+    try {
+      const signalOneTime = await checkNearbyUsers();
+      if (signalOneTime?.signals?.length) {
+        setSignals(signalOneTime.signals);
+      }
+    } catch (e) {
+      console.error("Page Paint signals failed", e);
+    }
 
-    // ---- check nearby every 15s ----
     nearbyCheckIntervalRef.current = setInterval(async () => {
       try {
         const res = await checkNearbyUsers();
-
-        setSignals((prev) =>
-          res?.signals && res.signals.length > 0 ? res.signals : prev,
-        );
+        if (res?.signals?.length) {
+          setSignals(prev => {
+            const map = new Map(prev.map(s => [s.id, s]));
+            res.signals.forEach(s => map.set(s.id, s));
+            return [...map.values()];
+          });
+        }
       } catch (e) {
         console.error("Nearby check failed:", e);
       }
     }, 15_000);
+  };
 
-    return () => {
-      clearInterval(locationInterval);
-      clearInterval(nearbyCheckIntervalRef.current);
-    };
-  }, []);
+  init();
+
+  const locationInterval = setInterval(sendLocation, 60_000);
+
+  return () => {
+    clearInterval(locationInterval);
+    clearInterval(nearbyCheckIntervalRef.current);
+  };
+}, []);
+
 
   /* ---------- INITIAL FEED LOAD ---------- */
   useEffect(() => {
