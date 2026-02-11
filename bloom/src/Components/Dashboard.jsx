@@ -415,7 +415,8 @@ useEffect(() => {
         {/* Notifications Panel */}
         {notifPanelOpen && (
           <div className="fixed inset-0 z-50 flex justify-center bg-black/20 backdrop-blur-sm px-4 pt-6 pb-6 overflow-hidden animate-fadeIn">
-            <div className="w-full max-w-md bg-white/95 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] animate-slideUpFade">
+            <div className="w-full max-w-md bg-white/95 rounded-3xl shadow-2xl flex flex-col max-h-[85vh]    overflow-hidden
+ animate-slideUpFade">
               {/* Header */}
               <div className="flex items-start justify-between px-4 py-4 shrink-0">
                 <div className="flex gap-2">
